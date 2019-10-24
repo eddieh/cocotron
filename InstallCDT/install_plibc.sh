@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=~/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 PREFIX=`pwd`/../system/i386-mingw32msvc
@@ -25,4 +25,3 @@ cp lib/libplibc.dll.a $PREFIX/lib/libplibc.a
 
 mkdir -p $PREFIX/include
 (cd include;tar -cf - *) | (cd $PREFIX/include;tar -xf -)
-

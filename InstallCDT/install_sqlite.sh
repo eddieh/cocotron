@@ -2,10 +2,10 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=~/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
-BASEDIR=/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/
+BASEDIR=~/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/
 PREFIX=`pwd`/../system/i386-mingw32msvc
 
 $scriptResources/downloadFilesIfNeeded.sh $downloadFolder "http://cocotron.googlecode.com/files/sqlite-dll-win32-x86-3070600.zip"

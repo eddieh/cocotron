@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=~/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 if [ ""$1"" = "" ];then
@@ -23,7 +23,7 @@ else
   gccVersion=$3
 fi
 
-BASEDIR=/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
+BASEDIR=~/Library/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
 PREFIX=`pwd`/../system/i386-mingw32msvc
 
 BUILD=/tmp/build_tiff
@@ -36,7 +36,7 @@ cd $BUILD
 tar -xvzf $downloadFolder/tiff-${TIFFVERSION}.tar.gz
 cd tiff-${TIFFVERSION}
 
-pwd 
+pwd
 
 GCC=$(echo $BASEDIR/gcc-$gccVersion/bin/*gcc)
 AS=$(echo $BASEDIR/gcc-$gccVersion/bin/*as)
@@ -44,7 +44,7 @@ AR=$(echo $BASEDIR/gcc-$gccVersion/bin/*ar)
 RANLIB=$(echo $BASEDIR/gcc-$gccVersion/bin/*ranlib)
 TARGET=$($GCC -dumpmachine)
 
-COCOTRON=/Developer/Cocotron/1.0//build/$targetPlatform/$targetArchitecture
+COCOTRON=~/Library/Developer/Cocotron/1.0//build/$targetPlatform/$targetArchitecture
 INSTALL_PREFIX=$PREFIX/libtiff
 BINARY_PATH=$INSTALL_PREFIX/bin
 INCLUDE_PATH=$INSTALL_PREFIX/include
@@ -58,7 +58,6 @@ mkdir -p $INCLUDE_PATH
 ./configure --prefix="$INSTALL_PREFIX" -host $TARGET AR=$AR CC=$GCC RANLIB=$RANLIB AS=$AS \
           --with-jpeg-include-dir=$PREFIX/libjpeg/include --with-jpeg-lib-dir=$PREFIX/libjpeg/lib \
           --with-zlib-include-dir=$PREFIX/zlib-1.2.5/include --with-zlib-lib-dir=$PREFIX/zlib-1.2.5/lib \
-         --enable-mdi --disable-jpeg12 --disable-cxx --disable-shared 
+         --enable-mdi --disable-jpeg12 --disable-cxx --disable-shared
 
 make && make install
-

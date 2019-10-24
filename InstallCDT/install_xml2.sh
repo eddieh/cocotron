@@ -5,7 +5,7 @@ echo "Installing libxml2"
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=~/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 PREFIX=`pwd`/../system/i386-mingw32msvc
@@ -16,4 +16,3 @@ mkdir -p $PREFIX
 cd $PREFIX
 unzip -o $downloadFolder/libxml2-2.7.7.win32.zip
 unzip -o $downloadFolder/iconv-1.9.2.win32.zip
-

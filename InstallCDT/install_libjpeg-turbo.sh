@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=~/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 if [ ""$1"" = "" ];then
@@ -23,7 +23,7 @@ else
   gccVersion=$3
 fi
 
-BASEDIR=/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
+BASEDIR=~/Library/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
 PREFIX=`pwd`/../system/i386-mingw32msvc/libjpeg
 
 BUILD=/tmp/build_libjepgturbo
@@ -38,7 +38,7 @@ cd $BUILD
 tar -xvzf $downloadFolder/libjpeg-turbo-1.3.0.tar.gz
 cd libjpeg-turbo-1.3.0
 
-pwd 
+pwd
 
 GCC=$(echo $BASEDIR/gcc-$gccVersion/bin/*gcc)
 AS=$(echo $BASEDIR/gcc-$gccVersion/bin/*as)
@@ -48,6 +48,6 @@ TARGET=$($GCC -dumpmachine)
 export MAKE="$(which make)"
 
 
-./configure --prefix="$PREFIX" -host $TARGET AR=$AR AS=$AS CC=$GCC RANLIB=$RANLIB --with-jpeg8 
+./configure --prefix="$PREFIX" -host $TARGET AR=$AR AS=$AS CC=$GCC RANLIB=$RANLIB --with-jpeg8
 
 make && make install
