@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=~/Library/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 if [ ""$1"" = "" ];then
@@ -23,7 +23,7 @@ else
   gccVersion=$3
 fi
 
-BASEDIR=~/Library/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
+BASEDIR=$HOME/Library/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
 PREFIX=`pwd`/../system/i386-mingw32msvc/libjpeg
 
 BUILD=/tmp/build_libjepg

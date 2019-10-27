@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=~/Library/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 PREFIX=`pwd`/../system/i386-mingw32msvc

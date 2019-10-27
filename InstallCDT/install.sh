@@ -1,26 +1,34 @@
 #!/bin/sh
-#Copyright (c) 2006 Christopher J. W. Lloyd
+
+# Copyright (c) 2006 Christopher J. W. Lloyd
+# Copyright (c) 2019 Eddie Hillenbrand
 #
-#Permission is hereby granted, free of charge, to any person obtaining a copy of this
-#software and associated documentation files (the "Software"), to deal in the Software
-#without restriction, including without limitation the rights to use, copy, modify,
-#merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-#permit persons to whom the Software is furnished to do so, subject to the following
-#conditions:
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
 #
-#The above copyright notice and this permission notice shall be included in all copies
-#or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
 #
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-#INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-#PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-#LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-#TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-#OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 #
 # Inspired by the build-cross.sh script by Sam Lantinga, et al
-# Usage: install.sh <platform> <architecture> <compiler> <compiler-version> <osVersion>"
+# Usage:
+#   install.sh <platform> <arch> <compiler> <compiler-ver> <os-ver>
 # Windows i386, Linux i386, Solaris sparc
+
+TAR=tar
 
 if [ ""$1"" = "" ];then
 	targetPlatform="Windows"
@@ -88,10 +96,12 @@ else
 	wordSize="32"
 fi
 
+set -eu
+
 /bin/echo "Welcome to The Cocotron's InstallCDT script"
 
 oldSpecsPath="/Library/Application\ Support/Developer/Shared/Xcode/Specifications"
-specsPath="~/Library/Application Support/Developer/Shared/Xcode/Specifications"
+specsPath="$HOME/Library/Application Support/Developer/Shared/Xcode/Specifications"
 
 # We don't need to check if the path is writable in ~/
 # if [ -w specsPath ];then
@@ -101,9 +111,7 @@ specsPath="~/Library/Application Support/Developer/Shared/Xcode/Specifications"
 # 	exit 1
 # fi
 
-set -eu
-
-mkdir -p $specsPath
+mkdir -p "$specsPath"
 
 cd "`dirname \"$0\"`"
 installResources=`pwd`/Resources
@@ -116,16 +124,33 @@ fi
 enableLanguages="c,objc,c++,obj-c++"
 
 oldInstallFolder="/Developer"
-installFolder="~/Library/Developer"
+installFolder="$HOME/Library/Developer"
 
 productName=Cocotron
 productVersion=1.0
 
 binutilsVersion=2.21-20111025
 mingwRuntimeVersion=3.20
+mingwAPIDirectory=3.17
 mingwAPIVersion=3.17-2
 gmpVersion=4.2.3
 mpfrVersion=2.3.2
+
+
+URL1="http://cocotron-tools-gpl3.googlecode.com/files/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz"
+URL1="http://cocotron-tools-gpl3.googlecode.com/files/w32api-$mingwAPIVersion-mingw32-dev.tar.gz"
+URL1A="http://cocotron-tools-gpl3.googlecode.com/files/w32api-3.17-2-mingw32-dev.tar.gz"
+URL2="http://cocotron-tools-gpl3.googlecode.com/files/$compiler-$compilerVersion$compilerVersionDate.tar.bz2"
+URL3="http://ftp.sunet.se/pub/gnu/gmp/gmp-$gmpVersion.tar.bz2"
+URL4="http://cocotron-binutils-2-21.googlecode.com/files/binutils-$binutilsVersion.tar.gz"
+URL5="http://cocotron-tools-gpl3.googlecode.com/files/mpfr-$mpfrVersion.tar.bz2"
+
+MINGWRT_URL="https://sourceforge.net/projects/mingw/files/MinGW/Base/mingwrt/mingwrt-$mingwRuntimeVersion/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz"
+W32API_URL="https://sourceforge.net/projects/mingw/files/MinGW/Base/w32api/w32api-$mingwAPIDirectory/w32api-$mingwAPIVersion-mingw32-dev.tar.lzma"
+GCC_URL="https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-tools-gpl3/gcc-4.3.1-02242010.tar.bz2"
+GMP_URL="http://ftp.gnu.org/gnu/gmp/gmp-4.2.3.tar.bz2"
+BINUTILS_URL="https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-binutils-2-21/binutils-2.21-20111025.tar.gz"
+MPFR_URL="https://www.mpfr.org/mpfr-2.3.2/mpfr-2.3.2.tar.bz2"
 
 binutilsConfigureFlags=""
 
@@ -195,26 +220,35 @@ toolResources="$installResources/tools"
 
 
 
-productFolder=$installFolder/$productName/$productVersion
+productFolder="$installFolder/$productName/$productVersion"
 
-downloadFolder=$productFolder/Downloads
-sourceFolder=$productFolder/Source
-interfaceFolder=$productFolder/PlatformInterfaces/$compilerTarget
-buildFolder=$productFolder/build/$targetPlatform/$targetArchitecture
-resultFolder=$productFolder/$targetPlatform/$targetArchitecture/$compiler-$compilerVersion
-toolFolder=$productFolder/bin
+downloadFolder="$productFolder/Downloads"
+sourceFolder="$productFolder/Source"
+interfaceFolder="$productFolder/PlatformInterfaces/$compilerTarget"
+buildFolder="$productFolder/build/$targetPlatform/$targetArchitecture"
+resultFolder="$productFolder/$targetPlatform/$targetArchitecture/$compiler-$compilerVersion"
+toolFolder="$productFolder/bin"
 
 PATH="$resultFolder/bin:$PATH"
 
 downloadCompilerIfNeeded(){
-	$scriptResources/downloadFilesIfNeeded.sh $downloadFolder "http://cocotron-tools-gpl3.googlecode.com/files/$compiler-$compilerVersion$compilerVersionDate.tar.bz2 http://ftp.sunet.se/pub/gnu/gmp/gmp-$gmpVersion.tar.bz2 http://cocotron-binutils-2-21.googlecode.com/files/binutils-$binutilsVersion.tar.gz http://cocotron-tools-gpl3.googlecode.com/files/mpfr-$mpfrVersion.tar.bz2"
-	$scriptResources/unarchiveFiles.sh $downloadFolder $sourceFolder "$compiler-$compilerVersion$compilerVersionDate binutils-$binutilsVersion gmp-$gmpVersion mpfr-$mpfrVersion"
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $GCC_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $GMP_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $BINUTILS_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $MPFR_URL
+
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "$compiler-$compilerVersion$compilerVersionDate"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "binutils-$binutilsVersion"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "gmp-$gmpVersion"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "mpfr-$mpfrVersion"
 }
 
 createWindowsInterfaceIfNeeded(){
-	"$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder "http://cocotron-tools-gpl3.googlecode.com/files/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz http://cocotron-tools-gpl3.googlecode.com/files/w32api-$mingwAPIVersion-mingw32-dev.tar.gz"
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $MINGWRT_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $W32API_URL
 
-	"$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "mingwrt-$mingwRuntimeVersion-mingw32-dev w32api-$mingwAPIVersion-mingw32-dev"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "mingwrt-$mingwRuntimeVersion-mingw32-dev"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "w32api-$mingwAPIVersion-mingw32-dev"
 }
 
 createLinuxInterfaceIfNeeded(){
@@ -243,7 +277,7 @@ copyPlatformInterface(){
 		exit 1
 	else
 		mkdir -p $resultFolder/$compilerTarget
-		(cd $interfaceFolder;gnutar -cf - *) | (cd $resultFolder/$compilerTarget;gnutar -xf -)
+		(cd $interfaceFolder;$TAR cf - *) | (cd $resultFolder/$compilerTarget;$TAR xf -)
 	fi
 }
 

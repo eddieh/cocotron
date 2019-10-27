@@ -4,7 +4,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=~/Library/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 if [ ""$1"" = "" ];then
@@ -37,9 +37,9 @@ cd ..
 cat > Makefile.in.Cocotron <<EOF
 AGGLIBS= -lagg
 AGGCXXFLAGS = -O3
-CXX = ~/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/bin/i386-pc-mingw32msvc-g++
-C = ~/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/bin/i386-pc-mingw32msvc-gcc
-LIB = ~/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/bin/i386-pc-mingw32msvc-ar cr
+CXX = $HOME/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/bin/i386-pc-mingw32msvc-g++
+C = $HOME/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/bin/i386-pc-mingw32msvc-gcc
+LIB = $HOME/Library/Developer/Cocotron/1.0/Windows/i386/gcc-4.3.1/bin/i386-pc-mingw32msvc-ar cr
 
 .PHONY : clean
 EOF
