@@ -6,8 +6,8 @@
 Project = gmp
 Version	= 4.2.3
 
-PROJECT_DIR=$(Project)-$(Version)
-PROJECT_PATH = $(THIRD_PARTY_PATH)/$(Project)/$(PROJECT_DIR/$(PROJECT_DIR)
+PROJECT_DIR = $(Project)-$(Version)
+PROJECT_PATH = $(THIRD_PARTY_PATH)/$(Project)/$(PROJECT_DIR)/$(PROJECT_DIR)
 BUILD_DIR = $(Project)-$(Version)
 BUILD_PATH = $(BUILDROOT)/$(BUILD_DIR)
 ABI = $(TARGET_ABI)
