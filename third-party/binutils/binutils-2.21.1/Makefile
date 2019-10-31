@@ -12,7 +12,7 @@ BUILD_DIR = $(Project)-$(Version)
 BUILD_PATH = $(BUILDROOT)/$(BUILD_DIR)
 ABI = $(TARGET_ABI)
 
-CFLAGS = -m$(ABI) -Wformat=0 -Wno-error
+CFLAGS = "-m${ABI} -Wformat=0 -Wno-error"
 
 all:
 	rm -rf $(BUILD_PATH)
