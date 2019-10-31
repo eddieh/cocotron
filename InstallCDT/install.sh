@@ -286,7 +286,8 @@ configureAndInstall_binutils() {
 	rm -rf $buildFolder/binutils-$binutilsVersion
 	mkdir -p $buildFolder/binutils-$binutilsVersion
 	pushd $buildFolder/binutils-$binutilsVersion
-	CFLAGS="-m${wordSize} -Wformat=0 -Wno-error=deprecated-declarations -Wno-error=unused-value" $sourceFolder/binutils-$binutilsVersion/configure --prefix="$resultFolder" --target=$compilerTarget $binutilsConfigureFlags
+        # -Wno-error=deprecated-declarations -Wno-error=unused-value
+	CFLAGS="-m${wordSize} -Wformat=0 -Wno-error" $sourceFolder/binutils-$binutilsVersion/configure --prefix="$resultFolder" --target=$compilerTarget $binutilsConfigureFlags
 	make
 	make install
 	popd
