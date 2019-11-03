@@ -45,6 +45,7 @@ const char * ldfile_output_machine_name = "";
 unsigned long ldfile_output_machine;
 enum bfd_architecture ldfile_output_architecture;
 search_dirs_type * search_head;
+search_dirs_type * framework_search_head;
 
 #ifdef VMS
 static char * slash = "";
@@ -65,6 +66,7 @@ typedef struct search_arch
 static search_dirs_type **search_tail_ptr = &search_head;
 static search_arch_type *search_arch_head;
 static search_arch_type **search_arch_tail_ptr = &search_arch_head;
+static search_dirs_type **framework_search_tail_ptr = &framework_search_head;
 
 /* Test whether a pathname, after canonicalization, is the same or a
    sub-directory of the sysroot directory.  */
@@ -126,6 +128,21 @@ ldfile_add_library_path (const char *name, bfd_boolean cmdline)
       new_dirs->sysrooted = is_sysrooted_pathname (name, FALSE);
     }
 }
+
+void ldfile_add_framework_path(const char *path) {
+  search_dirs_type *new;
+
+  new = xmalloc (sizeof (search_dirs_type));
+  new->next = NULL;
+  new->name = xstrdup (path);
+  new->cmdline = FALSE;
+  new->sysrooted = FALSE;
+
+  *framework_search_tail_ptr = new;
+  framework_search_tail_ptr = &new->next;
+}
+
+
 
 /* Try to open a BFD for a lang_input_statement.  */
 
@@ -372,22 +389,52 @@ ldfile_open_file_search (const char *arch,
 	return FALSE;
     }
 
-  for (search = search_head; search != NULL; search = search->next)
+  search=(entry->search_frameworks_flag)?framework_search_head:search_head;
+
+  for (; search != NULL; search = search->next)
     {
+      char *frameworkDirectory="";
       char *string;
+
+      if(entry->search_frameworks_flag){
+       frameworkDirectory=alloca(strlen(entry->filename)+strlen(".framework")+strlen(slash)+1);
+       sprintf(frameworkDirectory,"%s.framework%s",entry->filename,slash);
+      }
+
+
 
       if (entry->dynamic && ! link_info.relocatable)
 	{
-	  if (ldemul_open_dynamic_archive (arch, search, entry))
+      search_dirs_type check;
+      char            *shared=xmalloc(strlen(search->name)+strlen(slash)+strlen(frameworkDirectory)+1);
+      
+      sprintf(shared,"%s%s%s",search->name,slash,frameworkDirectory);
+      
+      check.next=NULL;
+      check.name=shared;
+      check.cmdline=search->cmdline;
+      check.sysrooted=search->sysrooted;
+      
+	  if (ldemul_open_dynamic_archive (arch, &check, entry))
 	    {
 	      entry->sysrooted = search->sysrooted;
 	      return TRUE;
 	    }
 	}
 
+      string = xmalloc (strlen(frameworkDirectory)+strlen (search->name)
+			+ strlen (slash)
+			+ strlen (lib)
+			+ strlen (entry->filename)
+			+ strlen (arch)
+			+ strlen (suffix)
+			+ 1);
+
+
+
       if (entry->maybe_archive)
-	string = concat (search->name, slash, lib, entry->filename,
-			 arch, suffix, (const char *) NULL);
+	sprintf (string, "%s%s%s%s%s%s%s",search->name, slash,
+		 frameworkDirectory,lib, entry->filename, arch, suffix);
       else
 	string = concat (search->name, slash, entry->filename,
 			 (const char *) 0);

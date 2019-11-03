@@ -32,7 +32,8 @@ typedef enum
   lang_input_file_is_marker_enum,
   lang_input_file_is_fake_enum,
   lang_input_file_is_search_file_enum,
-  lang_input_file_is_file_enum
+  lang_input_file_is_file_enum,
+  lang_input_file_is_framework_enum
 } lang_input_file_enum_type;
 
 struct _fill_type
@@ -253,6 +254,11 @@ typedef struct lang_input_statement_struct
 
   /* 1 means search a set of directories for this file.  */
   unsigned int search_dirs_flag : 1;
+
+  /* 1 means we search the frameworks path */
+  unsigned int search_frameworks_flag : 1;
+
+
 
   /* 1 means this was found in a search directory marked as sysrooted,
      if search_dirs_flag is false, otherwise, that it should be
@@ -566,6 +572,7 @@ extern lang_output_section_statement_type *lang_insert_orphan
    struct orphan_save *, etree_type *, lang_statement_list_type *);
 extern lang_input_statement_type *lang_add_input_file
   (const char *, lang_input_file_enum_type, const char *);
+extern void lang_add_input_filelist(const char *);
 extern void lang_add_keepsyms_file
   (const char *);
 extern lang_output_section_statement_type *lang_output_section_statement_lookup

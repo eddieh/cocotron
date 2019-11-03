@@ -175,6 +175,10 @@ enum option_values
   OPTION_PLUGIN_OPT,
 #endif /* ENABLE_PLUGINS */
   OPTION_DEFAULT_SCRIPT,
+  OPTION_FILTER,
+  OPTION_FRAMEWORK,
+  OPTION_FILELIST,
+  OPTION_SINGLE_MODULE
 };
 
 /* The long options.  This structure is used for both the option
@@ -242,8 +246,8 @@ static const struct ld_option ld_options[] =
   { {"auxiliary", required_argument, NULL, 'f'},
     'f', N_("SHLIB"), N_("Auxiliary filter for shared object symbol table"),
     TWO_DASHES },
-  { {"filter", required_argument, NULL, 'F'},
-    'F', N_("SHLIB"), N_("Filter for shared object symbol table"),
+  { {"filter", required_argument, NULL, OPTION_FILTER},
+    '\0', N_("SHLIB"), N_("Filter for shared object symbol table"),
     TWO_DASHES },
   { {NULL, no_argument, NULL, '\0'},
     'g', NULL, N_("Ignored"), ONE_DASH },
@@ -610,6 +614,14 @@ static const struct ld_option ld_options[] =
     TWO_DASHES },
   { {"wrap", required_argument, NULL, OPTION_WRAP},
     '\0', N_("SYMBOL"), N_("Use wrapper functions for SYMBOL"), TWO_DASHES },
+  { {"framework", required_argument, NULL, OPTION_FRAMEWORK },
+    '\0', NULL, N_("Link named framework"), ONE_DASH },
+  { {"filelist", required_argument, NULL, OPTION_FILELIST },
+    '\0', NULL, N_("Link files in filelist"), ONE_DASH },
+  { {"framework-path", required_argument, NULL, 'F' },
+    'F', N_("DIRECTORY"), N_("Add DIRECTORY to framework search path"), ONE_DASH },
+  { {"single_module", no_argument, NULL, OPTION_SINGLE_MODULE },
+    '\0', NULL, N_("Create single module"), ONE_DASH },
 };
 
 #define OPTION_COUNT ARRAY_SIZE (ld_options)
@@ -891,7 +903,7 @@ parse_args (unsigned argc, char **argv)
 	      command_line.auxiliary_filters[c + 1] = NULL;
 	    }
 	  break;
-	case 'F':
+	case OPTION_FILTER:
 	  command_line.filter_shlib = optarg;
 	  break;
 	case OPTION_FORCE_EXE_SUFFIX:
@@ -1536,6 +1548,19 @@ parse_args (unsigned argc, char **argv)
               einfo (_("%P%X: --hash-size needs a numeric argument\n"));
           }
           break;
+	case OPTION_FRAMEWORK:
+	  config.dynamic_link = TRUE;
+	  lang_add_input_file (optarg, lang_input_file_is_framework_enum, NULL);
+    	  break;
+   	 case 'F':    
+	  ldfile_add_framework_path (optarg);
+  	    break;
+  	 case OPTION_FILELIST:
+  	   lang_add_input_filelist(optarg);
+   	  break;
+  	    
+ 	 case OPTION_SINGLE_MODULE:
+    	  break;
 	}
     }
 

@@ -44,6 +44,9 @@ typedef struct search_dirs {
 
 extern search_dirs_type *search_head;
 
+extern search_dirs_type *framework_search_head;
+
+
 extern void ldfile_add_arch
   (const char *);
 extern void ldfile_add_library_path
@@ -52,6 +55,8 @@ extern void ldfile_open_command_file
   (const char *name);
 extern void ldfile_open_default_command_file
   (const char *name);
+extern void ldfile_add_framework_path
+  (const char *);
 extern void ldfile_open_file
   (struct lang_input_statement_struct *);
 extern bfd_boolean ldfile_try_open_bfd
