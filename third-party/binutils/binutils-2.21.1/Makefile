@@ -17,7 +17,7 @@ CFLAGS = "-m${ABI} -Wformat=0 -Wno-error"
 all:
 	rm -rf $(BUILD_PATH)
 	mkdir -p $(BUILD_PATH)
-	cd $(BUILD_PATH) && CFLAGS=$(CFLAGS) $(PROJECT_PATH)/configure \
+	cd $(BUILD_PATH) && CC=$(CC) CFLAGS=$(CFLAGS) $(PROJECT_PATH)/configure \
 	    --prefix=$(INSTALL_PATH) --target=$(COMPILER_TARGET)
 	cd $(BUILD_PATH) && make
 	cd $(BUILD_PATH) && make install
