@@ -15,6 +15,7 @@ ABI = $(TARGET_ABI)
 all:
 	rm -rf $(BUILD_PATH)
 	mkdir -p $(BUILD_PATH)
-	cd $(BUILD_PATH) && CC=$(CC) ABI=$(ABI) $(PROJECT_PATH)/configure --prefix=$(INSTALL_PATH)
+	cd $(BUILD_PATH) && $(PROJECT_PATH)/configure CC=$(CC) ABI=$(ABI) \
+	  --prefix=$(INSTALL_PATH)
 	cd $(BUILD_PATH) && make
 	cd $(BUILD_PATH) && make install
