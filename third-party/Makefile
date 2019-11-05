@@ -3,7 +3,7 @@ THIRD_PARTY_V1 += mingw32api/w32api-3.17-2
 THIRD_PARTY_V1 += binutils/binutils-2.21.1
 THIRD_PARTY_V1 += gmp/gmp-4.2.3
 THIRD_PARTY_V1 += mpfr/mpfr-2.3.2
-#THIRD_PARTY_V1 += gcc/gcc-4.3.1
+THIRD_PARTY_V1 += gcc/gcc-4.3.1
 
 
 export PREFIX SRCROOT BUILDROOT DSTROOT TARGET_PLATFORM TARGET_ARCH \
