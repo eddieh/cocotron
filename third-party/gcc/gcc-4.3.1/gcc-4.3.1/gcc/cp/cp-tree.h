@@ -3361,6 +3361,11 @@ more_aggr_init_expr_args_p (const aggr_init_expr_arg_iterator *iter)
 #define DO_COND(NODE)		TREE_OPERAND (DO_STMT_CHECK (NODE), 0)
 #define DO_BODY(NODE)		TREE_OPERAND (DO_STMT_CHECK (NODE), 1)
 
+/* Used as a flag to indicate synthesized inner do-while loop of a 
+ foreach statement.  Used for generation of break/continue statement 
+ of the loop. */
+#define DO_FOREACH(NODE)           TREE_OPERAND (DO_STMT_CHECK (NODE), 2)
+
 /* FOR_STMT accessors. These give access to the init statement,
    condition, update expression, and body of the for statement,
    respectively.  */

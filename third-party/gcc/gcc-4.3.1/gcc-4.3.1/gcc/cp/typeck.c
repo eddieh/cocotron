@@ -2142,6 +2142,16 @@ finish_class_member_access_expr (tree object, tree name, bool template_p)
   if (!objc_is_public (object, name))
     return error_mark_node;
 
+  /* APPLE LOCAL begin C* property (Radar 4436866) */
+  if (!processing_template_decl)
+    {
+      if (TREE_CODE (name) == IDENTIFIER_NODE
+	  /* APPLE LOCAL radar 5285911 */
+          && (expr = objc_build_property_reference_expr (object, name)))
+        return expr;
+    }
+  /* APPLE LOCAL end C* property (Radar 4436866) */
+
   object_type = TREE_TYPE (object);
 
   if (processing_template_decl)
@@ -5784,6 +5794,14 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
 
       if (modifycode == NOP_EXPR)
 	{
+  	  /* APPLE LOCAL begin C* property (Radar 4436866) */
+      	  if (c_dialect_objc ())
+            {
+              result = objc_build_setter_call (lhs, rhs);
+              if (result)
+                return result;
+            }
+	  /* APPLE LOCAL end C* property (Radar 4436866) */
 	  /* `operator=' is not an inheritable operator.  */
 	  if (! IS_AGGR_TYPE (lhstype))
 	    /* Do the default thing.  */;
@@ -5816,6 +5834,14 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
 
 	  /* Now it looks like a plain assignment.  */
 	  modifycode = NOP_EXPR;
+  	  /* APPLE LOCAL begin C* property (Radar 4436866) */
+      	  if (c_dialect_objc ())
+            {
+              result = objc_build_setter_call (lhs, newrhs);
+              if (result)
+                return result;
+            }
+	  /* APPLE LOCAL end C* property (Radar 4436866) */
 	}
       gcc_assert (TREE_CODE (lhstype) != REFERENCE_TYPE);
       gcc_assert (TREE_CODE (TREE_TYPE (newrhs)) != REFERENCE_TYPE);

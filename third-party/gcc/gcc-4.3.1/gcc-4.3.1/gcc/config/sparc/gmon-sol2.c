@@ -179,7 +179,7 @@ _mcleanup(void)
     char		*profdir;
     const char		*proffile;
     char		*progname;
-    char		 buf[PATH_MAX];
+    char		 buf[1024];
     extern char	       **___Argv;
 
     moncontrol(0);

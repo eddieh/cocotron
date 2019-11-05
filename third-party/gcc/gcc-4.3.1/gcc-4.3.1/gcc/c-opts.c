@@ -325,7 +325,7 @@ c_common_handle_option (size_t scode, const char *arg, int value)
       break;
 
     case OPT_F:
-      TARGET_OPTF (xstrdup (arg));
+      add_framework_path (xstrdup (arg));
       break;
 
     case OPT_I:
@@ -699,10 +699,6 @@ c_common_handle_option (size_t scode, const char *arg, int value)
       flag_no_gnu_keywords = !value;
       break;
 
-    case OPT_fgnu_runtime:
-      flag_next_runtime = !value;
-      break;
-
     case OPT_fhandle_exceptions:
       warning (0, "-fhandle-exceptions has been renamed -fexceptions (and is now on by default)");
       flag_exceptions = value;
@@ -728,10 +724,6 @@ c_common_handle_option (size_t scode, const char *arg, int value)
       flag_ms_extensions = value;
       break;
 
-    case OPT_fnext_runtime:
-      flag_next_runtime = value;
-      break;
-
     case OPT_fnil_receivers:
       flag_nil_receivers = value;
       break;
@@ -739,6 +731,22 @@ c_common_handle_option (size_t scode, const char *arg, int value)
     case OPT_fnonansi_builtins:
       flag_no_nonansi_builtin = !value;
       break;
+
+	case OPT_fobjc_link_constant_string_class:
+		flag_objc_link_constant_string_class = value;
+		break;
+
+	case OPT_fobjc_module_static_initializer:
+		flag_objc_module_static_initializer = value;
+		break;
+
+	case OPT_fobjc_msgsend:
+		flag_objc_msgsend = value;
+		break;
+
+	case OPT_fobjc_period_symbols:
+		flag_objc_period_symbols=value;
+		break;
 
     case OPT_foperator_names:
       cpp_opts->operator_names = value;
@@ -1058,10 +1066,9 @@ c_common_post_options (const char **pfilename)
     flag_unit_at_a_time = 1;
 
   /* Default to ObjC sjlj exception handling if NeXT runtime.  */
-  if (flag_objc_sjlj_exceptions < 0)
-    flag_objc_sjlj_exceptions = flag_next_runtime;
-  if (flag_objc_exceptions && !flag_objc_sjlj_exceptions)
-    flag_exceptions = 1;
+    flag_objc_sjlj_exceptions = 1;
+    flag_objc_exceptions=1;
+    flag_exceptions |= c_dialect_objc();
 
   /* -Wextra implies -Wtype-limits, -Wclobbered, 
      -Wempty-body, -Wsign-compare, 

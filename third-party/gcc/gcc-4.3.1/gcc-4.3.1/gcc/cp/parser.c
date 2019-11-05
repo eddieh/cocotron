@@ -37,6 +37,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "target.h"
 #include "cgraph.h"
 #include "c-common.h"
+/* APPLE LOCAL pascal strings */
+#include "../../libcpp/internal.h"
+/* APPLE LOCAL C* language */
+#include "tree-iterator.h"
 
 
 /* The lexer.  */
@@ -161,6 +165,10 @@ typedef struct cp_token_cache GTY(())
   cp_token * GTY ((skip)) last;
 } cp_token_cache;
 
+/* APPLE LOCAL begin C* language */
+/* APPLE LOCAL radar 5130983 */
+static void objc_finish_foreach_stmt (tree);
+/* APPLE LOCAL end C* language */
 /* Prototypes.  */
 
 static cp_lexer *cp_lexer_new_main
@@ -468,6 +476,8 @@ cp_lexer_get_preprocessor_token (cp_lexer *lexer, cp_token *token)
 	{
 	/* Map 'class' to '@class', 'private' to '@private', etc.  */
 	case RID_CLASS: token->keyword = RID_AT_CLASS; break;
+        /* APPLE LOCAL radar 4564694 */
+        case RID_AT_PACKAGE: token->keyword = RID_AT_PACKAGE; break;
 	case RID_PRIVATE: token->keyword = RID_AT_PRIVATE; break;
 	case RID_PROTECTED: token->keyword = RID_AT_PROTECTED; break;
 	case RID_PUBLIC: token->keyword = RID_AT_PUBLIC; break;
@@ -1626,6 +1636,24 @@ static tree cp_parser_constant_expression
   (cp_parser *, bool, bool *);
 static tree cp_parser_builtin_offsetof
   (cp_parser *);
+/* APPLE LOCAL begin C* language */
+static void objc_foreach_stmt 
+  (cp_parser *, tree);
+/* APPLE LOCAL end C* language */
+/* APPLE LOCAL begin C* property (Radar 4436866) */
+static void objc_cp_parser_at_property
+  (cp_parser *);
+static void objc_cp_parse_property_decl
+  (cp_parser *);
+/* APPLE LOCAL end C* property (Radar 4436866) */
+/* APPLE LOCAL begin objc new property */
+static void objc_cp_parser_property_impl (cp_parser *parser, 
+					  enum rid keyword);
+/* APPLE LOCAL end objc new property */
+/* APPLE LOCAL begin radar 4548636 */
+static bool objc_attr_follwed_by_at_keyword
+  (cp_parser *);
+/* APPLE LOCAL end radar 4548636 */
 
 /* Statements [gram.stmt.stmt]  */
 
@@ -1870,6 +1898,10 @@ static tree cp_parser_objc_message_args
   (cp_parser *);
 static tree cp_parser_objc_message_expression
   (cp_parser *);
+/* APPLE LOCAL begin radar 5277239 */
+static tree cp_parser_objc_reference_expression
+  (cp_parser *, tree);
+/* APPLE LOCAL end radar 5277239 */
 static tree cp_parser_objc_encode_expression
   (cp_parser *);
 static tree cp_parser_objc_defs_expression
@@ -1884,6 +1916,12 @@ static bool cp_parser_objc_selector_p
   (enum cpp_ttype);
 static tree cp_parser_objc_selector
   (cp_parser *);
+/* APPLE LOCAL begin radar 3803157 - objc attribute */
+static void cp_parser_objc_maybe_attributes 
+  (cp_parser *, tree *);
+static tree cp_parser_objc_identifier_list
+  (cp_parser *);
+/* APPLE LOCAL end radar 3803157 - objc attribute */
 static tree cp_parser_objc_protocol_refs_opt
   (cp_parser *);
 static void cp_parser_objc_declaration
@@ -2540,6 +2578,209 @@ cp_parser_skip_to_end_of_statement (cp_parser* parser)
       cp_lexer_consume_token (parser->lexer);
     }
 }
+
+/* APPLE LOCAL begin radar 5277239 */
+/* This routine checks that type_decl is a class or class object followed by a '.'
+   which is an alternative syntax to class-method messaging [class-name class-method]
+*/
+
+static bool
+cp_objc_property_reference_prefix (cp_parser *parser, tree type)
+{
+  return c_dialect_objc () && cp_lexer_peek_token (parser->lexer)->type == CPP_DOT 
+	 && (objc_is_id (type) || objc_is_class_name (type));
+}
+/* APPLE LOCAL end radar 5277239 */
+/* APPLE LOCAL begin C* property (Radar 4436866, 4591909) */
+/* This routine parses the propery declarations. */
+
+static void
+objc_cp_parse_property_decl (cp_parser *parser)
+{
+  int declares_class_or_enum;
+  cp_decl_specifier_seq declspecs;
+
+  cp_parser_decl_specifier_seq (parser,
+                                CP_PARSER_FLAGS_NONE,
+                                &declspecs,
+                                &declares_class_or_enum);
+  /* Keep going until we hit the `;' at the end of the declaration. */
+  while (cp_lexer_next_token_is_not (parser->lexer, CPP_SEMICOLON))
+    {
+      tree property;
+      cp_token *token;
+      cp_declarator *declarator
+	= cp_parser_declarator (parser, CP_PARSER_DECLARATOR_NAMED,
+				NULL, NULL, false);
+      property = grokdeclarator (declarator, &declspecs, NORMAL,0, NULL);
+      /* Revover from any kind of error in property declaration. */
+      if (property == error_mark_node || property == NULL_TREE)
+	return;
+      /* APPLE LOCAL begin objc new property */
+      if (declspecs.attributes)
+        cplus_decl_attributes (&property, declspecs.attributes, 0);
+      /* APPLE LOCAL begin radar 4712415 */
+      token = cp_lexer_peek_token (parser->lexer);
+      if (token->keyword == RID_ATTRIBUTE)
+	{
+	  /* Attribute on the property itself. */
+	  declspecs.attributes = cp_parser_attributes_opt (parser);
+	  cplus_decl_attributes (&property, declspecs.attributes, 0);
+          token = cp_lexer_peek_token (parser->lexer);
+	}
+      /* APPLE LOCAL end radar 4712415 */
+      /* APPLE LOCAL end objc new property */
+      /* Add to property list. */
+      objc_add_property_variable (copy_node (property));
+      if (token->type == CPP_COMMA)
+	{
+	  cp_lexer_consume_token (parser->lexer);  /* Eat ','.  */
+	  continue;
+	}
+      else if (token->type == CPP_EOF)
+	return;
+    }
+    cp_lexer_consume_token (parser->lexer);  /* Eat ';'.  */
+}
+
+/* APPLE LOCAL begin objc new property */
+/* This routine parses @synthesize property_name[=ivar],... or 
+   @dynamic paroperty_name,...  syntax.
+*/
+static void
+objc_cp_parser_property_impl (cp_parser *parser, enum rid keyword)
+{
+  cp_lexer_consume_token (parser->lexer);  /* Eat @synthesize or @dynamic */
+  if (keyword == RID_AT_DYNAMIC)
+    {
+      tree identifier_list = cp_parser_objc_identifier_list (parser);
+      objc_declare_property_impl (2, identifier_list);
+    }
+  else
+    {
+      cp_token *sep = cp_lexer_peek_token (parser->lexer);
+      tree list = NULL_TREE;
+      do 
+        {
+	  tree property;
+          tree identifier_list;
+	  if (sep->type == CPP_COMMA)
+	    cp_lexer_consume_token (parser->lexer);  /* Eat ',' */
+	  property = cp_parser_identifier (parser);
+	  sep = cp_lexer_peek_token (parser->lexer);
+	  if (sep->type == CPP_EQ)
+	    {
+	      cp_lexer_consume_token (parser->lexer);  /* '=' */
+	      identifier_list = build_tree_list (cp_parser_identifier (parser), property);
+	    } 
+	  else
+	    identifier_list = build_tree_list (NULL_TREE, property); 
+	  list = chainon (list, identifier_list);
+	  sep = cp_lexer_peek_token (parser->lexer);
+      }
+      while (sep->type == CPP_COMMA);
+      objc_declare_property_impl (1, list);
+    }
+  cp_parser_consume_semicolon_at_end_of_statement (parser);
+}
+/* APPLE LOCAL end objc new property */
+
+/* This function parses a @property declaration inside an objective class
+   or its implementation. */
+
+static void 
+objc_cp_parser_at_property (cp_parser *parser)
+{
+  cp_token *token;
+
+  objc_set_property_attr (0, NULL_TREE);
+  /* Consume @property */
+  cp_lexer_consume_token (parser->lexer);
+  token = cp_lexer_peek_token (parser->lexer);
+  if (token->type == CPP_OPEN_PAREN)
+    {
+      cp_lexer_consume_token (parser->lexer);
+      while (token->type != CPP_CLOSE_PAREN && token->type != CPP_EOF)
+	{
+          tree node;
+          /* property has attribute list. */
+          /* Consume '(' */
+          node = cp_parser_identifier (parser);
+          if (node == ridpointers [(int) RID_READONLY])
+	    {
+	      /* Do the readyonly thing. */
+	      objc_set_property_attr (1, NULL_TREE);
+	    }	
+	  else if (node == ridpointers [(int) RID_GETTER]
+		   || node == ridpointers [(int) RID_SETTER])
+	    {
+	      /* Do the getter/setter attribute. */
+	      token = cp_lexer_consume_token (parser->lexer);
+	      if (token->type == CPP_EQ)
+		{
+		  /* APPLE LOCAL radar 4675792 */
+		  tree attr_ident = cp_parser_objc_selector (parser);
+		  int num;
+		  if (node == ridpointers [(int) RID_GETTER])
+		    num = 2;
+		  else
+		    {
+		      num = 3;
+		      /* Consume the ':' which must always follow the setter name. */
+	              if (cp_lexer_next_token_is (parser->lexer, CPP_COLON))
+			cp_lexer_consume_token (parser->lexer); 
+		    }
+		  objc_set_property_attr (num, attr_ident);	  
+		}
+	      else
+		{
+		  error ("getter/setter attribute must be followed by '='");
+		  break;
+		}
+	    }
+	  /* APPLE LOCAL begin objc new property */
+	  else if (node == ridpointers [(int) RID_READWRITE])
+	    {
+	      objc_set_property_attr (9, NULL_TREE);
+	    }	
+	  else if (node == ridpointers [(int) RID_ASSIGN])
+	    {
+	      objc_set_property_attr (10, NULL_TREE);
+	    }	
+	  else if (node == ridpointers [(int) RID_RETAIN])
+	    {
+	      objc_set_property_attr (11, NULL_TREE);
+	    }	
+	  else if (node == ridpointers [(int) RID_COPY])
+	    {
+	      objc_set_property_attr (12, NULL_TREE);
+	    }	
+	  /* APPLE LOCAL end objc new property */
+	  /* APPLE LOCAL begin radar 4947014 - objc atomic property */
+	  else if (node == ridpointers [(int) RID_NONATOMIC])
+	    {
+	      objc_set_property_attr (13, NULL_TREE);
+	    }	
+	  /* APPLE LOCAL end radar 4947014 - objc atomic property */
+	  else
+	    {
+	      error ("unknown property attribute");
+	      break;
+	    }
+	  if (cp_lexer_next_token_is (parser->lexer, CPP_COMMA))
+	    cp_lexer_consume_token (parser->lexer);
+	  token = cp_lexer_peek_token (parser->lexer);	  
+	}
+	if (token->type != CPP_CLOSE_PAREN)
+	  {
+	    error ("syntax error in @property's attribute declaration");
+	  }
+	/* Consume ')' */
+	cp_lexer_consume_token (parser->lexer);
+    }
+    objc_cp_parse_property_decl (parser);
+}
+/* APPLE LOCAL end C* property (Radar 4436866, 4591909) */
 
 /* This function is called at the end of a statement or declaration.
    If the next token is a semicolon, it is consumed; otherwise, error
@@ -3372,6 +3613,11 @@ cp_parser_primary_expression (cp_parser *parser,
 	    if (ambiguous_decls)
 	      return error_mark_node;
 
+	    /* APPLE LOCAL begin radar 5277239 */
+	    if (TREE_CODE (decl) == TYPE_DECL 
+		&& cp_objc_property_reference_prefix (parser, TREE_TYPE (decl)))
+	      return cp_parser_objc_reference_expression (parser, decl);
+	    /* APPLE LOCAL end radar 5277239 */
 	    /* In Objective-C++, an instance variable (ivar) may be preferred
 	       to whatever cp_parser_lookup_name() found.  */
 	    decl = objc_lookup_ivar (decl, id_expression);
@@ -7171,6 +7417,117 @@ cp_parser_condition (cp_parser* parser)
   return cp_parser_expression (parser, /*cast_p=*/false);
 }
 
+/* APPLE LOCAL begin radar 4631818 */
+/* This routine looks for objective-c++'s foreach statement by scanning for-loop
+   header looking for either 1) 'for (type selector in...)' or 2) 'for (selector in...)' 
+   where selector is already declared in outer scope. If it failed, it undoes the lexical
+   look-ahead and returns false. If it succeeded, it adds the 'selector' to the statement
+   list and returns true. At success, lexer points to token following the 'in' keyword.
+*/
+
+static bool
+cp_parser_parse_foreach_stmt (cp_parser *parser)
+{
+  int decl_spec_declares_class_or_enum;
+  bool is_cv_qualifier;
+  tree type_spec;
+  cp_decl_specifier_seq decl_specs;
+  tree node;
+  cp_token *token;
+  bool is_legit_foreach = false;
+  cp_declarator *declarator;
+
+  /* Exclude class/struct/enum type definition in for-loop header, which is 
+     aparently legal in c++. Otherwise, it causes side-effect (type is enterred
+     in function's scope) when type is re-parsed. */
+  token = cp_lexer_peek_token (parser->lexer);
+  if (cp_parser_token_is_class_key (token) || token->keyword == RID_ENUM)
+    return false;
+
+  cp_parser_parse_tentatively (parser); 
+  clear_decl_specs (&decl_specs);
+  type_spec
+    = cp_parser_type_specifier (parser, CP_PARSER_FLAGS_OPTIONAL,
+                                &decl_specs,
+                                /*is_declaration=*/true,
+                                &decl_spec_declares_class_or_enum,
+                                &is_cv_qualifier);
+  declarator
+    = cp_parser_declarator (parser, CP_PARSER_DECLARATOR_NAMED,
+                            NULL,
+                            /*parenthesized_p=*/NULL,
+                            /*member_p=*/false);
+  if (declarator == cp_error_declarator)
+    {
+      cp_parser_abort_tentative_parse (parser);
+      return false;
+    }
+
+  token = cp_lexer_peek_token (parser->lexer);
+
+  node = token->u.value; 
+  if (node && TREE_CODE (node) == IDENTIFIER_NODE
+      && node == ridpointers [(int) RID_IN])
+    {   
+      enum cpp_ttype nt = cp_lexer_peek_nth_token (parser->lexer, 2)->type;
+      switch (nt)
+        {
+          case CPP_NAME:
+          case CPP_OPEN_PAREN:
+          case CPP_MULT:
+          case CPP_PLUS: case CPP_PLUS_PLUS:
+          case CPP_MINUS: case CPP_MINUS_MINUS:
+          case CPP_OPEN_SQUARE:                     
+	      is_legit_foreach = true;
+              default:
+               break;
+        } 
+    }        
+  if (is_legit_foreach)
+    {
+      tree pushed_scope = NULL;
+      tree decl;
+      if (type_spec)
+	{
+	  /* we have: 'for (type selector in...)' */
+	  cp_parser_commit_to_tentative_parse (parser);
+          decl = start_decl (declarator, &decl_specs,
+                             false /*is_initialized*/,
+                             NULL_TREE /*attributes*/,
+                             NULL_TREE /*prefix_attributes*/,
+                             &pushed_scope);
+          /* APPLE LOCAL begin radar 5130983 */
+          if (!decl || decl == error_mark_node)
+            {
+              error ("selector is undeclared");
+              is_legit_foreach = false;
+            }
+          else
+            cp_finish_decl (decl,
+                            NULL_TREE /*initializer*/,
+			    false /*init_const_expr_p=*/,
+                            NULL_TREE /*asm_specification*/,
+                            0 /*flags */);
+	}
+      else {
+        tree statement;
+        /* we have: 'for (selector in...)' */
+        /* Parse it as an expression. */
+        cp_parser_abort_tentative_parse (parser);
+        statement = cp_parser_expression (parser, /*cast_p=*/false);
+        add_stmt (statement);
+      }
+      /* APPLE LOCAL end radar 5130983 */
+      /* Consume the 'in' token */
+      cp_lexer_consume_token (parser->lexer);
+    }
+  else
+    cp_parser_abort_tentative_parse (parser);
+  return is_legit_foreach;
+}
+/* APPLE LOCAL end radar 4631818 */
+
+/* APPLE LOCAL begin mainline */
 /* We check for a ) immediately followed by ; with no whitespacing
    between.  This is used to issue a warning for:
 
@@ -7305,6 +7662,14 @@ cp_parser_iteration_statement (cp_parser* parser)
 	statement = begin_for_stmt ();
 	/* Look for the `('.  */
 	cp_parser_require (parser, CPP_OPEN_PAREN, "`('");
+	/* APPLE LOCAL begin radar 4631818 */
+	if (c_dialect_objc ()
+	    && cp_parser_parse_foreach_stmt (parser))
+	  {
+	    objc_foreach_stmt (parser, statement);
+	    break;
+	  }
+	/* APPLE LOCAL end radar 4631818 */
 	/* Parse the initialization.  */
 	cp_parser_for_init_statement (parser);
 	finish_for_init_stmt (statement);
@@ -7643,6 +8008,27 @@ cp_parser_declaration_seq_opt (cp_parser* parser)
     }
 }
 
+/* APPLE LOCAL begin radar 4548636 */
+static bool
+/* This routine is called when lexer has seen an '__attribute__' token.
+   It does look-ahead to see of __attribute__ list declaration is followed
+   by an objective-c at_keyword. If so, it returns true. This is to 
+   disambiguate use of attribute before types and before objective-c's 
+   @interface declaration. */
+
+objc_attr_follwed_by_at_keyword (cp_parser* parser)
+{
+  cp_token token1;
+  tree attributes = NULL_TREE;
+  cp_lexer_save_tokens (parser->lexer);
+  cp_parser_objc_maybe_attributes (parser, &attributes);
+  gcc_assert (attributes);
+  token1 = *cp_lexer_peek_token (parser->lexer);
+  cp_lexer_rollback_tokens (parser->lexer);
+  return OBJC_IS_AT_KEYWORD (token1.keyword);
+}
+/* APPLE LOCAL end radar 4548636 */
+
 /* Parse a declaration.
 
    declaration:
@@ -7738,7 +8124,12 @@ cp_parser_declaration (cp_parser* parser)
 	       || token2.keyword == RID_ATTRIBUTE))
     cp_parser_namespace_definition (parser);
   /* Objective-C++ declaration/definition.  */
-  else if (c_dialect_objc () && OBJC_IS_AT_KEYWORD (token1.keyword))
+  /* APPLE LOCAL begin radar 4548636 */
+  else if (c_dialect_objc () 
+	   && (OBJC_IS_AT_KEYWORD (token1.keyword) 
+	       || (token1.keyword == RID_ATTRIBUTE 
+		   && objc_attr_follwed_by_at_keyword (parser))))
+  /* APPLE LOCAL end radar 4548636 */
     cp_parser_objc_declaration (parser);
   /* We must have either a block declaration or a function
      definition.  */
@@ -10988,7 +11379,10 @@ cp_parser_type_name (cp_parser* parser)
 	}
 
       /* Issue an error if we did not find a type-name.  */
-      if (TREE_CODE (type_decl) != TYPE_DECL)
+      /* APPLE LOCAL begin radar 5277239 */
+      if (TREE_CODE (type_decl) != TYPE_DECL 
+	  || cp_objc_property_reference_prefix (parser, TREE_TYPE (type_decl)))
+      /* APPLE LOCAL end radar 5277239 */
 	{
 	  if (!cp_parser_simulate_error (parser))
 	    cp_parser_name_lookup_error (parser, identifier, type_decl,
@@ -14149,7 +14543,10 @@ cp_parser_class_name (cp_parser *parser,
     }
   else if (TREE_CODE (decl) != TYPE_DECL
 	   || TREE_TYPE (decl) == error_mark_node
-	   || !IS_AGGR_TYPE (TREE_TYPE (decl)))
+	   /* APPLE LOCAL begin radar 5277239 */
+	   || !IS_AGGR_TYPE (TREE_TYPE (decl))
+	   || cp_objc_property_reference_prefix (parser, TREE_TYPE (decl)))
+	   /* APPLE LOCAL end radar 5277239 */
     decl = error_mark_node;
 
   if (decl == error_mark_node)
@@ -18251,6 +18648,23 @@ cp_parser_objc_message_expression (cp_parser* parser)
   return objc_build_message_expr (build_tree_list (receiver, messageargs));
 }
 
+/* Parse an Objective-C dot-syntax class expression.
+ 
+ objc-message-expression:
+ class-name '.' class-method-name
+ 
+ Returns an objc_property_reference expression. */
+
+static tree
+cp_parser_objc_reference_expression (cp_parser* parser, tree type_decl)
+{
+	tree receiver, component;
+	receiver = objc_get_class_reference (TREE_TYPE (type_decl));
+	cp_lexer_consume_token (parser->lexer);  /* Eact '.' */
+	component = cp_parser_objc_message_args (parser);
+	return objc_build_property_reference_expr (receiver, TREE_PURPOSE (component));
+}
+
 /* Parse an objc-message-receiver.
 
    objc-message-receiver:
@@ -18342,7 +18756,13 @@ cp_parser_objc_message_args (cp_parser* parser)
 
       token = cp_lexer_peek_token (parser->lexer);
     }
-
+  /* APPLE LOCAL begin radar 4294425 */
+  if (sel_args == NULL_TREE && addl_args == NULL_TREE)
+    {
+      cp_parser_error (parser, "objective-c++ message argument(s) are expected");
+      return build_tree_list (error_mark_node, error_mark_node);
+    }
+  /* APPLE LOCAL end radar 4294425 */
   return build_tree_list (sel_args, addl_args);
 }
 
@@ -18569,6 +18989,7 @@ cp_parser_objc_protocol_refs_opt (cp_parser* parser)
   return protorefs;
 }
 
+
 /* Parse a Objective-C visibility specification.  */
 
 static void
@@ -18587,6 +19008,11 @@ cp_parser_objc_visibility_spec (cp_parser* parser)
     case RID_AT_PUBLIC:
       objc_set_visibility (1);
       break;
+    /* APPLE LOCAL begin radar 4564694 */
+    case RID_AT_PACKAGE:
+      objc_set_visibility (3);
+      break;
+    /* APPLE LOCAL end radar 4564694 */
     default:
       return;
     }
@@ -18702,6 +19128,20 @@ cp_parser_objc_selector (cp_parser* parser)
     }
 }
 
+/* APPLE LOCAL begin radar 3803157 - objc attribute */
+static void 
+cp_parser_objc_maybe_attributes (cp_parser* parser, tree* attributes)
+{
+  cp_token *token = cp_lexer_peek_token (parser->lexer);
+  if (*attributes != NULL_TREE)
+    {
+      error ("method attributes must be specified at the end only");
+      *attributes = NULL_TREE;
+    }
+  if (token->keyword == RID_ATTRIBUTE)
+    *attributes = cp_parser_attributes_opt (parser);
+}
+
 /* Parse an Objective-C params list.  */
 
 static tree
@@ -18732,7 +19172,7 @@ cp_parser_objc_method_keyword_params (cp_parser* parser)
 	= chainon (params,
 		   objc_build_keyword_decl (selector,
 					    typename,
-					    identifier));
+					    identifier, NULL_TREE));
 
       token = cp_lexer_peek_token (parser->lexer);
     }
@@ -18795,6 +19235,31 @@ cp_parser_objc_interstitial_code (cp_parser* parser)
   /* Allow stray semicolons.  */
   else if (token->type == CPP_SEMICOLON)
     cp_lexer_consume_token (parser->lexer);
+  /* APPLE LOCAL begin C* language */
+  else if (token->keyword == RID_AT_OPTIONAL)
+    {
+      cp_lexer_consume_token (parser->lexer);
+      objc_set_method_opt (1);
+    }
+  else if (token->keyword == RID_AT_REQUIRED)
+    {
+      cp_lexer_consume_token (parser->lexer);
+      objc_set_method_opt (0);
+    }
+  /* APPLE LOCAL end C* language */
+  /* APPLE LOCAL begin radar 4508851 */
+  else if (token->keyword == RID_NAMESPACE)
+    cp_parser_namespace_definition (parser);
+  /* APPLE LOCAL end radar 4508851 */
+  /* APPLE LOCAL begin 4093475 */
+  /* Other stray characters must generate errors.  */
+  else if (token->type == CPP_OPEN_BRACE || token->type == CPP_CLOSE_BRACE)
+    {
+      cp_lexer_consume_token (parser->lexer);
+      error ("stray %<%s%> between Objective-C++ methods",
+	     token->type == CPP_OPEN_BRACE ? "{" : "}");
+    }
+  /* APPLE LOCAL end 4093475 */
   /* Finally, try to parse a block-declaration, or a function-definition.  */
   else
     cp_parser_block_declaration (parser, /*statement_p=*/false);
@@ -18828,9 +19293,13 @@ cp_parser_objc_method_prototype_list (cp_parser* parser)
       if (token->type == CPP_PLUS || token->type == CPP_MINUS)
 	{
 	  objc_add_method_declaration
-	   (cp_parser_objc_method_signature (parser));
+	   (cp_parser_objc_method_signature (parser), NULL_TREE);
 	  cp_parser_consume_semicolon_at_end_of_statement (parser);
 	}
+      /* APPLE LOCAL begin C* interface */
+      else if (token->keyword == RID_AT_PROPERTY)
+	objc_cp_parser_at_property (parser);
+      /* APPLE LOCAL end C* interface */
       else
 	/* Allow for interspersed non-ObjC++ code.  */
 	cp_parser_objc_interstitial_code (parser);
@@ -18838,7 +19307,8 @@ cp_parser_objc_method_prototype_list (cp_parser* parser)
       token = cp_lexer_peek_token (parser->lexer);
     }
 
-  cp_lexer_consume_token (parser->lexer);  /* Eat '@end'.  */
+  /* APPLE LOCAL 4093475 */
+  cp_parser_require_keyword (parser, RID_AT_END, "`@end'");
   objc_finish_interface ();
 }
 
@@ -18849,7 +19319,8 @@ cp_parser_objc_method_definition_list (cp_parser* parser)
 {
   cp_token *token = cp_lexer_peek_token (parser->lexer);
 
-  while (token->keyword != RID_AT_END)
+  /* APPLE LOCAL 4093475 */
+  while (token->keyword != RID_AT_END && token->type != CPP_EOF)
     {
       tree meth;
 
@@ -18857,19 +19328,36 @@ cp_parser_objc_method_definition_list (cp_parser* parser)
 	{
 	  push_deferring_access_checks (dk_deferred);
 	  objc_start_method_definition
-	   (cp_parser_objc_method_signature (parser));
+	   (cp_parser_objc_method_signature (parser), NULL_TREE);
 
 	  /* For historical reasons, we accept an optional semicolon.  */
 	  if (cp_lexer_next_token_is (parser->lexer, CPP_SEMICOLON))
 	    cp_lexer_consume_token (parser->lexer);
 
-	  perform_deferred_access_checks ();
-	  stop_deferring_access_checks ();
-	  meth = cp_parser_function_definition_after_declarator (parser,
-								 false);
-	  pop_deferring_access_checks ();
-	  objc_finish_method_definition (meth);
+	  /* APPLE LOCAL begin radar 4290840 */
+	  /* Check for all possibilities of illegal lookahead tokens. */
+	  cp_token *ptk = cp_lexer_peek_token (parser->lexer);
+	  if (!(ptk->type == CPP_PLUS || ptk->type == CPP_MINUS 
+		|| ptk->type == CPP_EOF || ptk->keyword == RID_AT_END))
+	    {
+	      perform_deferred_access_checks ();
+	      stop_deferring_access_checks ();
+	      meth = cp_parser_function_definition_after_declarator (parser,
+								     false);
+	      pop_deferring_access_checks ();
+	      objc_finish_method_definition (meth);
+	    }
+	  /* APPLE LOCAL end radar 4290840 */
 	}
+      /* APPLE LOCAL begin C* interface */
+      else if (token->keyword == RID_AT_PROPERTY)
+	objc_cp_parser_at_property (parser);
+      /* APPLE LOCAL end C* interface */
+      /* APPLE LOCAL begin objc new property */
+      else if (token->keyword == RID_AT_SYNTHESIZE
+	       || token->keyword == RID_AT_DYNAMIC)
+	objc_cp_parser_property_impl (parser, token->keyword);
+      /* APPLE LOCAL end objc new property */
       else
 	/* Allow for interspersed non-ObjC++ code.  */
 	cp_parser_objc_interstitial_code (parser);
@@ -18877,7 +19365,8 @@ cp_parser_objc_method_definition_list (cp_parser* parser)
       token = cp_lexer_peek_token (parser->lexer);
     }
 
-  cp_lexer_consume_token (parser->lexer);  /* Eat '@end'.  */
+  /* APPLE LOCAL 4093475 */
+  cp_parser_require_keyword (parser, RID_AT_END, "`@end'");
   objc_finish_implementation ();
 }
 
@@ -18909,6 +19398,21 @@ cp_parser_objc_class_ivars (cp_parser* parser)
 				    CP_PARSER_FLAGS_OPTIONAL,
 				    &declspecs,
 				    &decl_class_or_enum_p);
+      /* APPLE LOCAL begin radar 4360010 */
+      if (declspecs.storage_class == sc_static)
+	{
+	  error ("storage class specified for ivar");
+	  /* recover */
+	  declspecs.storage_class = sc_none;
+	}
+      /* APPLE LOCAL end radar 4360010 */
+      /* APPLE LOCAL begin radar 4652027 */
+      else if (declspecs.specs[(int) ds_typedef])
+        {
+	  error ("typedef declaration among ivars");
+	  cp_lexer_consume_token (parser->lexer); /* recover */          
+        }
+      /* APPLE LOCAL end radar 4652027 */
       prefix_attributes = declspecs.attributes;
       declspecs.attributes = NULL_TREE;
 
@@ -19021,7 +19525,7 @@ cp_parser_objc_protocol_declaration (cp_parser* parser)
   /* Try a forward declaration first.  */
   if (tok->type == CPP_COMMA || tok->type == CPP_SEMICOLON)
     {
-      objc_declare_protocols (cp_parser_objc_identifier_list (parser));
+      objc_declare_protocols (cp_parser_objc_identifier_list (parser), NULL_TREE);
      finish:
       cp_parser_consume_semicolon_at_end_of_statement (parser);
     }
@@ -19031,7 +19535,7 @@ cp_parser_objc_protocol_declaration (cp_parser* parser)
     {
       proto = cp_parser_identifier (parser);
       protorefs = cp_parser_objc_protocol_refs_opt (parser);
-      objc_start_protocol (proto, protorefs);
+      objc_start_protocol (proto, protorefs, NULL_TREE);
       cp_parser_objc_method_prototype_list (parser);
     }
 }
@@ -19040,11 +19544,12 @@ cp_parser_objc_protocol_declaration (cp_parser* parser)
 
 static void
 cp_parser_objc_superclass_or_category (cp_parser *parser, tree *super,
-							  tree *categ)
+							  tree *categ, bool *is_category)
 {
   cp_token *next = cp_lexer_peek_token (parser->lexer);
 
   *super = *categ = NULL_TREE;
+  *is_category = false;
   if (next->type == CPP_COLON)
     {
       cp_lexer_consume_token (parser->lexer);  /* Eat ':'.  */
@@ -19053,7 +19558,11 @@ cp_parser_objc_superclass_or_category (cp_parser *parser, tree *super,
   else if (next->type == CPP_OPEN_PAREN)
     {
       cp_lexer_consume_token (parser->lexer);  /* Eat '('.  */
-      *categ = cp_parser_identifier (parser);
+      /* APPLE LOCAL begin radar 4965989 */
+      next = cp_lexer_peek_token (parser->lexer);
+      *categ = (next->type == CPP_CLOSE_PAREN) ? NULL_TREE : cp_parser_identifier (parser);
+      *is_category = true;
+      /* APPLE LOCAL end radar 4965989 */
       cp_parser_require (parser, CPP_CLOSE_PAREN, "`)'");
     }
 }
@@ -19061,21 +19570,34 @@ cp_parser_objc_superclass_or_category (cp_parser *parser, tree *super,
 /* Parse an Objective-C class interface.  */
 
 static void
-cp_parser_objc_class_interface (cp_parser* parser)
+/* APPLE LOCAL radar 4947311 */
+cp_parser_objc_class_interface (cp_parser* parser, tree attributes)
 {
   tree name, super, categ, protos;
-
+  /* APPLE LOCAL radar 4965989 */
+  bool is_categ;
+  /* APPLE LOCAL radar 4947311 */
+  /* Code for radar 4548636 removed. */
   cp_lexer_consume_token (parser->lexer);  /* Eat '@interface'.  */
   name = cp_parser_identifier (parser);
-  cp_parser_objc_superclass_or_category (parser, &super, &categ);
+  /* APPLE LOCAL radar 4965989 */
+  cp_parser_objc_superclass_or_category (parser, &super, &categ, &is_categ);
   protos = cp_parser_objc_protocol_refs_opt (parser);
 
   /* We have either a class or a category on our hands.  */
-  if (categ)
-    objc_start_category_interface (name, categ, protos);
+  /* APPLE LOCAL radar 4965989 */
+  if (is_categ)
+  /* APPLE LOCAL begin radar 4548636 */
+    {
+      if (attributes)
+        error ("attributes may not be specified on a category");
+      objc_start_category_interface (name, categ, protos);
+    }
+  /* APPLE LOCAL end radar 4548636 */
   else
     {
-      objc_start_class_interface (name, super, protos);
+      /* APPLE LOCAL radar 4548636 */
+      objc_start_class_interface (name, super, protos, attributes);
       /* Handle instance variable declarations, if any.  */
       cp_parser_objc_class_ivars (parser);
       objc_continue_interface ();
@@ -19090,14 +19612,25 @@ static void
 cp_parser_objc_class_implementation (cp_parser* parser)
 {
   tree name, super, categ;
-
+  /* APPLE LOCAL radar 4965989 */
+  bool is_categ;
   cp_lexer_consume_token (parser->lexer);  /* Eat '@implementation'.  */
   name = cp_parser_identifier (parser);
-  cp_parser_objc_superclass_or_category (parser, &super, &categ);
+  /* APPLE LOCAL radar 4965989 */
+  cp_parser_objc_superclass_or_category (parser, &super, &categ, &is_categ);
 
   /* We have either a class or a category on our hands.  */
-  if (categ)
-    objc_start_category_implementation (name, categ);
+  /* APPLE LOCAL begin radar 4965989 */
+  if (is_categ)
+    {
+      if (categ == NULL_TREE)
+        {
+          error ("cannot implement anonymous category");
+          return;
+        }
+      objc_start_category_implementation (name, categ);
+    }
+  /* APPLE LOCAL end radar 4965989 */
   else
     {
       objc_start_class_implementation (name, super);
@@ -19135,10 +19668,12 @@ cp_parser_objc_declaration (cp_parser* parser)
       cp_parser_objc_class_declaration (parser);
       break;
     case RID_AT_PROTOCOL:
+      /* APPLE LOCAL radar 4947311 */
       cp_parser_objc_protocol_declaration (parser);
       break;
     case RID_AT_INTERFACE:
-      cp_parser_objc_class_interface (parser);
+      /* APPLE LOCAL radar 4947311 */
+      cp_parser_objc_class_interface (parser, NULL_TREE);
       break;
     case RID_AT_IMPLEMENTATION:
       cp_parser_objc_class_implementation (parser);
@@ -19186,14 +19721,33 @@ cp_parser_objc_try_catch_finally_statement (cp_parser *parser) {
     {
       cp_parameter_declarator *parmdecl;
       tree parm;
+      /* APPLE LOCAL radar 2848255 */
+      bool ellipsis_seen = false;
 
       cp_lexer_consume_token (parser->lexer);
       cp_parser_require (parser, CPP_OPEN_PAREN, "`('");
-      parmdecl = cp_parser_parameter_declaration (parser, false, NULL);
-      parm = grokdeclarator (parmdecl->declarator,
-			     &parmdecl->decl_specifiers,
-			     PARM, /*initialized=*/0,
-			     /*attrlist=*/NULL);
+      /* APPLE LOCAL begin radar 2848255 */
+      /* APPLE LOCAL begin radar 4995967 */
+      {
+        cp_token *token = cp_lexer_peek_token (parser->lexer);
+        if (token->type == CPP_ELLIPSIS)
+          {
+            /* @catch (...) */
+            parm = NULL_TREE;
+            cp_lexer_consume_token (parser->lexer);
+            ellipsis_seen = true;
+          }
+      }
+      /* APPLE LOCAL end radar 4995967 */
+      if (!ellipsis_seen)
+        {
+          parmdecl = cp_parser_parameter_declaration (parser, false, NULL);
+          parm = grokdeclarator (parmdecl->declarator,
+                                 &parmdecl->decl_specifiers,
+                                 PARM, /*initialized=*/0,
+                                 /*attrlist=*/NULL);
+        }
+      /* APPLE LOCAL end radar 2848255 */
       cp_parser_require (parser, CPP_CLOSE_PAREN, "`)'");
       objc_begin_catch_clause (parm);
       cp_parser_compound_statement (parser, NULL, false);
@@ -19284,6 +19838,220 @@ cp_parser_objc_statement (cp_parser * parser) {
 
   return error_mark_node;
 }
+
+/* APPLE LOCAL begin C* language */
+/* Routine closes up the C*'s foreach statement.
+*/
+
+static void
+objc_finish_foreach_stmt (tree for_stmt)
+{
+  if (flag_new_for_scope > 0)
+    {
+      tree scope = TREE_CHAIN (for_stmt);
+      TREE_CHAIN (for_stmt) = NULL;
+      add_stmt (do_poplevel (scope));
+    }
+
+  finish_stmt (); 
+}
+
+/*
+  Synthesizer routine for C*'s feareach statement.
+  
+  It synthesizes:
+  for ( type elem in collection) { stmts; }
+  
+  Into:
+    {
+    type elem;  
+    __objcFastEnumerationState enumState = { 0 };
+    id items[16];
+
+    unsigned long limit = [collection countByEnumeratingWithState:&enumState objects:items count:16];
+    if (limit) {
+      unsigned long startMutations = *enumState.mutationsPtr;
+      do {
+         unsigned long counter = 0;
+         do {
+           if (startMutations != *enumState.mutationsPtr) objc_enumerationMutation(collection);
+           elem = enumState.itemsPtr[counter++];
+           stmts;
+         } while (counter < limit);
+     } while (limit = [collection countByEnumeratingWithState:&enumState objects:items count:16]);
+  }
+  else
+    elem = nil; radar 4854605, 5128402
+
+*/
+
+static void
+objc_foreach_stmt (cp_parser* parser, tree statement)
+{
+  unsigned char in_statement;
+  tree enumerationMutation_call_exp;
+  tree countByEnumeratingWithState;
+  tree receiver;
+  tree exp, bind;
+  tree enumState_decl, items_decl;
+  tree limit_decl, limit_decl_assign_expr;
+  tree outer_if_stmt,  inner_if_stmt, if_condition, startMutations_decl;
+  tree outer_do_stmt, inner_do_stmt, do_condition;
+  tree counter_decl;
+  tree_stmt_iterator i = tsi_start (TREE_CHAIN (statement));
+  tree t = tsi_stmt (i);
+  /* APPLE LOCAL radar 5130983 */
+  tree elem_decl = TREE_CODE (t) == DECL_EXPR ? DECL_EXPR_DECL (t) : t;
+
+  receiver  = cp_parser_condition (parser);
+  cp_parser_require (parser, CPP_CLOSE_PAREN, "`)'");
+
+  /* APPLE LOCAL begin radar 5130983 */
+  if (elem_decl == error_mark_node)
+    return;
+
+  /* APPLE LOCAL end radar 5130983 */
+
+  /* APPLE LOCAL begin radar 4507230 */
+  if (!objc_type_valid_for_messaging (TREE_TYPE (elem_decl)))
+    {
+      error ("selector element does not have a valid object type");
+      return;
+    }
+
+  if (!objc_type_valid_for_messaging (TREE_TYPE (receiver)))
+    {
+      error ("expression does not have a valid object type");
+      return;
+    }
+  /* APPLE LOCAL end radar 4507230 */
+
+  enumerationMutation_call_exp = objc_build_foreach_components  (receiver, &enumState_decl, 
+								 &items_decl, &limit_decl, 
+								 &startMutations_decl, &counter_decl,
+							         &countByEnumeratingWithState);
+
+  /* __objcFastEnumerationState enumState = { 0 }; */
+  exp = build_stmt (DECL_EXPR, enumState_decl);
+  bind = build3 (BIND_EXPR, void_type_node, enumState_decl, exp, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+
+  /* id items[16]; */
+  bind = build3 (BIND_EXPR, void_type_node, items_decl, NULL, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+
+  /* Generate this statement and add it to the list. */
+  /* limit = [collection countByEnumeratingWithState:&enumState objects:items count:16] */
+  limit_decl_assign_expr = build2 (MODIFY_EXPR, TREE_TYPE (limit_decl), limit_decl, 
+				   countByEnumeratingWithState);
+  bind = build3 (BIND_EXPR, void_type_node, limit_decl, NULL, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+
+  /* if (limit) { */
+  outer_if_stmt = begin_if_stmt ();
+  /* APPLE LOCAL radar 4547045 */
+  if_condition = build_binary_op (NE_EXPR, limit_decl_assign_expr,
+                                  fold_convert (TREE_TYPE (limit_decl), integer_zero_node),
+                                  1);
+
+  finish_if_stmt_cond (if_condition, outer_if_stmt);
+
+  /* unsigned long startMutations = *enumState.mutationsPtr; */
+  exp = objc_build_component_ref (enumState_decl, get_identifier("mutationsPtr"));
+  exp = build_indirect_ref (exp, "unary *");
+  exp = build2 (MODIFY_EXPR, void_type_node, startMutations_decl, exp);
+  bind = build3 (BIND_EXPR, void_type_node, startMutations_decl, exp, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+ 
+  /* do { */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  outer_do_stmt = begin_do_stmt ();
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
+  /* Body of the outer do-while loop */
+  /* unsigned int counter = 0; */
+  exp = build2 (MODIFY_EXPR, void_type_node, counter_decl,
+		fold_convert (TREE_TYPE (counter_decl), integer_zero_node));
+  bind = build3 (BIND_EXPR, void_type_node, counter_decl, exp, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+
+  /*   do { */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  inner_do_stmt = begin_do_stmt ();
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
+  /* Body of the inner do-while loop */
+  
+  /* if (startMutations != *enumState.mutationsPtr) objc_enumerationMutation (collection); */
+  inner_if_stmt = begin_if_stmt ();
+  exp = objc_build_component_ref (enumState_decl, get_identifier("mutationsPtr"));
+  exp = build_indirect_ref (exp, "unary *");
+  if_condition = build_binary_op (NE_EXPR, startMutations_decl, exp, 1);
+  finish_if_stmt_cond (if_condition, inner_if_stmt);
+
+  add_stmt (enumerationMutation_call_exp);
+  finish_then_clause (inner_if_stmt);
+  finish_if_stmt (inner_if_stmt);
+
+  /* elem = enumState.itemsPtr [counter]; */
+  exp = objc_build_component_ref (enumState_decl, get_identifier("itemsPtr"));
+  exp = build_array_ref (exp, counter_decl);
+  add_stmt (build2 (MODIFY_EXPR, void_type_node, elem_decl, exp));
+  /* APPLE LOCAL radar 4538105 */
+  TREE_USED (elem_decl) = 1;
+
+  /* counter++; */
+  exp = build2 (PLUS_EXPR, TREE_TYPE (counter_decl), counter_decl,
+                build_int_cst (NULL_TREE, 1));
+  add_stmt (build2 (MODIFY_EXPR, void_type_node, counter_decl, exp));
+
+  /* ADD << stmts >> from the foreach loop. */
+  /* Parse the body of the for-statement.  */
+  in_statement = parser->in_statement;
+  parser->in_statement = IN_ITERATION_STMT;
+  cp_parser_already_scoped_statement (parser);
+  parser->in_statement = in_statement;
+
+  finish_do_body (inner_do_stmt);
+
+  /*   } while (counter < limit ); */
+  do_condition  = build_binary_op (LT_EXPR, counter_decl, limit_decl, 1);
+  finish_do_stmt (do_condition, inner_do_stmt);
+  DO_FOREACH (inner_do_stmt) = integer_zero_node;
+  /* APPLE LOCAL radar 4667060 */
+  DO_FOREACH (outer_do_stmt) = elem_decl;
+
+  finish_do_body (outer_do_stmt);
+
+  /* } while (limit = [collection countByEnumeratingWithState:&enumState objects:items count:16]);  */
+ 
+  exp = unshare_expr (limit_decl_assign_expr);
+  do_condition  = build_binary_op (NE_EXPR, exp,
+                                   fold_convert (TREE_TYPE (limit_decl), integer_zero_node),
+                                   1);
+  finish_do_stmt (do_condition, outer_do_stmt);
+
+
+  finish_then_clause (outer_if_stmt);
+
+  /* } */
+  /* APPLE LOCAL begin radar 4854605 - radar 5128402 */
+  begin_else_clause (outer_if_stmt);
+  add_stmt (build2 (MODIFY_EXPR, void_type_node, elem_decl,
+            fold_convert (TREE_TYPE (elem_decl), integer_zero_node)));
+  finish_else_clause (outer_if_stmt);
+  /* APPLE LOCAL end radar 4854605 - radar 5128402 */
+
+  finish_if_stmt (outer_if_stmt);
+
+  objc_finish_foreach_stmt (statement);
+}
+/* APPLE LOCAL end C* language */
 
 /* OpenMP 2.5 parsing routines.  */
 

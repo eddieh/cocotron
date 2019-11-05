@@ -29,7 +29,7 @@ along with GCC; see the file COPYING3.  If not see
 
 bool objc_init (void);
 const char *objc_printable_name (tree, int);
-tree objc_get_callee_fndecl (const_tree);
+tree objc_get_callee_fndecl (tree);
 void objc_finish_file (void);
 tree objc_fold_obj_type_ref (tree, tree);
 enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
@@ -39,8 +39,8 @@ enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
 
 /* Objective-C structures */
 
-#define CLASS_LANG_SLOT_ELTS		5
-#define PROTOCOL_LANG_SLOT_ELTS		2
+#define CLASS_LANG_SLOT_ELTS		9
+#define PROTOCOL_LANG_SLOT_ELTS		9
 #define OBJC_INFO_SLOT_ELTS		2
 
 /* KEYWORD_DECL */
@@ -54,6 +54,32 @@ enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
 #define METHOD_ADD_ARGS_ELLIPSIS_P(DECL) ((DECL)->decl_common.lang_flag_0)
 #define METHOD_DEFINITION(DECL) ((DECL)->decl_common.initial)
 #define METHOD_ENCODING(DECL) ((DECL)->decl_minimal.context)
+#define METHOD_TYPE_ATTRIBUTES(DECL) (DECL_COMMON_CHECK (DECL)->decl_common.abstract_origin)
+
+#define METHOD_PROPERTY_CONTEXT(DECL) (DECL_COMMON_CHECK (DECL)->decl_common.size_unit)
+
+#define PROPERTY_NAME(DECL) ((DECL)->decl_minimal.name)
+#define PROPERTY_GETTER_NAME(DECL) ((DECL)->decl_non_common.arguments)
+#define PROPERTY_SETTER_NAME(DECL) ((DECL)->decl_non_common.result)
+#define PROPERTY_IVAR_NAME(DECL) ((DECL)->decl_common.initial)
+#define PROPERTY_READONLY(DECL) ((DECL)->decl_minimal.context)
+#define PROPERTY_DYNAMIC(DECL) (DECL_COMMON_CHECK (DECL)->decl_common.abstract_origin)
+
+#define PROPERTY_COPY(DECL) (DECL_COMMON_CHECK (DECL)->decl_common.size_unit) 
+#define PROPERTY_RETAIN(DECL) (DECL_WITH_VIS_CHECK (DECL)->decl_with_vis.assembler_name)
+#define PROPERTY_ASSIGN(DECL) (!property_readonly \
+&& PROPERTY_RETAIN(DECL) == boolean_false_node \
+&& PROPERTY_COPY(DECL) == boolean_false_node)
+#define PROPERTY_READWRITE(DECL) (DECL_WITH_VIS_CHECK (DECL)->decl_with_vis.section_name)
+
+#define ANONYMOUS_CATEGORY(X) (TREE_CODE (X) == CATEGORY_INTERFACE_TYPE \
+&& CLASS_SUPER_NAME (X) == NULL_TREE)
+
+#define CLASS_PROPERTY_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 7)
+#define IMPL_PROPERTY_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 7)
+#define OPTIONAL_PROPERTY(PROPERTY_NODE) (TREE_LANG_FLAG_2 (PROPERTY_NODE))
+#define ATOMIC_PROPERTY(NODE) (TREE_LANG_FLAG_1 (NODE))
+#define IS_ATOMIC(PROPERTY)   (ATOMIC_PROPERTY(PROPERTY))
 
 /* CLASS_INTERFACE_TYPE, CLASS_IMPLEMENTATION_TYPE,
    CATEGORY_INTERFACE_TYPE, CATEGORY_IMPLEMENTATION_TYPE,
@@ -73,6 +99,23 @@ enum gimplify_status objc_gimplify_expr (tree *, tree *, tree *);
 #define PROTOCOL_CLS_METHODS(CLASS) ((CLASS)->type.maxval)
 #define PROTOCOL_FORWARD_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 1)
 #define PROTOCOL_DEFINED(CLASS) TREE_USED (CLASS)
+
+/* APPLE LOCAL begin C* language */
+#define PROTOCOL_OPTIONAL_CLS_METHODS(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 3)
+#define PROTOCOL_OPTIONAL_NST_METHODS(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 4)
+/* APPLE LOCAL end C* language */
+/* APPLE LOCAL begin C* property (Radar 4436866) */
+/* For CATEGORY_INTERFACE_TYPE, CLASS_INTERFACE_TYPE or PROTOCOL_INTERFACE_TYPE */
+#define CLASS_PROPERTY_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 7)
+/* For CLASS_IMPLEMENTATION_TYPE or CATEGORY_IMPLEMENTATION_TYPE. */
+#define IMPL_PROPERTY_DECL(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 7)
+/* APPLE LOCAL end C* property (Radar 4436866) */
+/* APPLE LOCAL begin radar 4548636 */
+/* For CLASS_INTERFACE_TYPE only */
+#define CLASS_ATTRIBUTES(CLASS) TREE_VEC_ELT (TYPE_LANG_SLOT_1 (CLASS), 8)
+/* APPLE LOCAL end radar 4548636 */
+/* APPLE LOCAL radar 4695101 */
+/* declaration of  PROTOCOL_IMPL_OBJ removed. */
 
 /* ObjC-specific information pertaining to RECORD_TYPEs are stored in
    the LANG_SPECIFIC structures, which may itself need allocating first.  */
@@ -288,7 +331,14 @@ enum objc_tree_index
     OCTI_ASSIGN_IVAR_FAST_DECL,
     OCTI_ASSIGN_GLOBAL_DECL,
     OCTI_ASSIGN_STRONGCAST_DECL,
-
+	
+	OCTI_FAST_ENUM_STATE_TEMP,
+    OCTI_ENUM_MUTATION_DECL,
+    OCTI_UMSG_GETATOMICPROPERTY,
+    OCTI_UMSG_SETATOMICPROPERTY,
+    OCTI_UMSG_COPYATOMICSTRUCT,
+    OCTI_UMSG_NSCOPYING,
+	
     OCTI_MAX
 };
 
@@ -453,5 +503,14 @@ extern GTY(()) tree objc_global_trees[OCTI_MAX];
 #define string_class_decl	objc_global_trees[OCTI_STRING_CLASS_DECL]
 #define internal_const_str_type	objc_global_trees[OCTI_INTERNAL_CNST_STR_TYPE]
 #define UOBJC_SUPER_decl	objc_global_trees[OCTI_SUPER_DECL]
+
+#define objc_fast_enum_state_type	objc_global_trees[OCTI_FAST_ENUM_STATE_TEMP]
+#define objc_enum_mutation_decl		objc_global_trees[OCTI_ENUM_MUTATION_DECL]
+
+#define umsg_GetAtomicProperty		objc_global_trees[OCTI_UMSG_GETATOMICPROPERTY]
+#define umsg_SetAtomicProperty		objc_global_trees[OCTI_UMSG_SETATOMICPROPERTY]
+#define umsg_CopyAtomicStruct		objc_global_trees[OCTI_UMSG_COPYATOMICSTRUCT]
+#define umsg_NSCopying_Type		objc_global_trees[OCTI_UMSG_NSCOPYING]
+
 
 #endif /* GCC_OBJC_ACT_H */

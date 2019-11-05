@@ -1905,6 +1905,12 @@ build_component_ref (tree datum, tree component)
   if (!objc_is_public (datum, component))
     return error_mark_node;
 
+  /* APPLE LOCAL begin C* property (Radar 4436866) */
+  /* APPLE LOCAL radar 5285911 */
+  if ((ref = objc_build_property_reference_expr (datum, component)))
+    return ref;
+  /* APPLE LOCAL end C* property (Radar 4436866) */
+
   /* See if there is a field or component with name COMPONENT.  */
 
   if (code == RECORD_TYPE || code == UNION_TYPE)
@@ -3484,6 +3490,12 @@ build_conditional_expr (tree ifexp, tree op1, tree op2)
 	  result_type = build_pointer_type (qualify_type (TREE_TYPE (type2),
 							  TREE_TYPE (type1)));
 	}
+      /* APPLE LOCAL begin 4154928 */
+      /* Objective-C pointer comparisons are a bit more lenient.  */
+      /* APPLE LOCAL radar 4229905 */
+      else if (objc_have_common_type (type1, type2, -3, NULL_TREE))
+	result_type = objc_common_type (type1, type2);
+      /* APPLE LOCAL end 4154928 */
       else
 	{
 	  pedwarn ("pointer type mismatch in conditional expression");
@@ -3826,7 +3838,9 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
   if (TREE_CODE (lhs) == ERROR_MARK || TREE_CODE (rhs) == ERROR_MARK)
     return error_mark_node;
 
-  if (!lvalue_or_else (lhs, lv_assign))
+  /* APPLE LOCAL non lvalue assign  - objc new property*/
+  /* APPLE LOCAL radar 5285911 */
+  if (!objc_property_reference_expr (lhs) && !lvalue_or_else (lhs, lv_assign))
     return error_mark_node;
 
   STRIP_TYPE_NOPS (rhs);
@@ -3841,6 +3855,15 @@ build_modify_expr (tree lhs, enum tree_code modifycode, tree rhs)
       lhs = stabilize_reference (lhs);
       newrhs = build_binary_op (modifycode, lhs, rhs, 1);
     }
+
+  /* APPLE LOCAL begin C* property (Radar 4436866) */
+  if (c_dialect_objc ())
+    {
+      result = objc_build_setter_call (lhs, newrhs);
+      if (result)
+        return result;
+    }
+  /* APPLE LOCAL end C* property (Radar 4436866) */
 
   /* Give an error for storing in something that is 'const'.  */
 

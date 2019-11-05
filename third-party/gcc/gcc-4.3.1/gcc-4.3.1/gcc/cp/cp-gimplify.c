@@ -41,6 +41,28 @@ enum bc_t { bc_break = 0, bc_continue = 1 };
    linked through TREE_CHAIN.  */
 static tree bc_label[2];
 
+/* APPLE LOCAL begin radar 4547045 */
+/* Pop label (which should be a 'break' label in this case) from the
+   label of break/continue stack. */
+static tree
+objc_pop_break_label (void)
+{
+  tree label = bc_label[bc_break];
+  gcc_assert (label);
+  bc_label[bc_break] = TREE_CHAIN (label);
+  TREE_CHAIN (label) = NULL_TREE;
+  return label;
+}
+
+/* Push the label on break/continue stack of labels. */
+static void
+objc_push_break_label (tree label)
+{
+  TREE_CHAIN (label) = bc_label[bc_break];
+  bc_label[bc_break] = label;
+}
+/* APPLE LOCAL end radar 4547045 */
+
 /* Begin a scope which can be exited by a break or continue statement.  BC
    indicates which.
 
@@ -186,7 +208,12 @@ gimplify_if_stmt (tree *stmt_p)
    loop body as in do-while loops.  */
 
 static tree
-gimplify_cp_loop (tree cond, tree body, tree incr, bool cond_is_first)
+/* APPLE LOCAL begin C* language */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+gimplify_cp_loop (tree cond, tree body, tree incr,
+		  bool cond_is_first, tree inner_foreach)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
+/* APPLE LOCAL end C* language */
 {
   tree top, entry, exit, cont_block, break_block, stmt_list, t;
   location_t stmt_locus;
@@ -195,8 +222,20 @@ gimplify_cp_loop (tree cond, tree body, tree incr, bool cond_is_first)
   stmt_list = NULL_TREE;
   entry = NULL_TREE;
 
-  break_block = begin_bc_block (bc_break);
-  cont_block = begin_bc_block (bc_continue);
+  /* APPLE LOCAL begin C* language */
+  /* Order of label addition to stack is important for objc's foreach-stmt. */
+  /* APPLE LOCAL radar 4667060 */
+  if (inner_foreach == integer_zero_node)
+    {
+      cont_block = begin_bc_block (bc_continue);
+      break_block = begin_bc_block (bc_break);
+    }
+  else
+    {
+      break_block = begin_bc_block (bc_break);
+      cont_block = begin_bc_block (bc_continue);
+    }
+  /* APPLE LOCAL end C* language */
 
   /* If condition is zero don't generate a loop construct.  */
   if (cond && integer_zerop (cond))
@@ -223,10 +262,34 @@ gimplify_cp_loop (tree cond, tree body, tree incr, bool cond_is_first)
       exit = build_and_jump (&LABEL_EXPR_LABEL (top));
       if (cond && !integer_nonzerop (cond))
 	{
-	  t = build_bc_goto (bc_break);
+	  /* APPLE LOCAL begin radar 4667060 */
+	  bool outer_foreach_loop = (inner_foreach
+				     && inner_foreach != integer_zero_node);
+	  tree label = NULL_TREE;
+	  if (outer_foreach_loop)
+	    /* New spec. requires that if no match was found; i.e. foreach 
+	       exited with no match, 'elem' be set to nil. So, we use a new 
+	       label for getting out of of the outer while loop and set 
+	       'elem=nill' after this label.  */
+	    t = build_and_jump (&label);
+	  else
+	    t = build_bc_goto (bc_break);
 	  exit = fold_build3 (COND_EXPR, void_type_node, cond, exit, t);
 	  gimplify_stmt (&exit);
-
+	  if (outer_foreach_loop)
+	    {
+	      /* Label: ; */
+	      t = build1 (LABEL_EXPR, void_type_node, label);
+	      gimplify_stmt (&t);
+	      append_to_statement_list (t, &exit);
+	      /* elem = nil */
+	      t = build2 (MODIFY_EXPR, void_type_node, inner_foreach,
+			  fold_convert (TREE_TYPE (inner_foreach), 
+					integer_zero_node));
+	      gimplify_stmt (&t);
+	      append_to_statement_list (t, &exit);
+	    }
+	  /* APPLE LOCAL end radar 4667060 */
 	  if (cond_is_first)
 	    {
 	      if (incr)
@@ -241,10 +304,26 @@ gimplify_cp_loop (tree cond, tree body, tree incr, bool cond_is_first)
 	}
     }
 
+  /* APPLE LOCAL begin radar 4547045 */
+  /* Pop foreach's inner loop break label so outer loop's
+     break label becomes target of inner loop body's break statements. 
+  */
+  t = NULL_TREE;
+  /* APPLE LOCAL radar 4667060 */
+  if (inner_foreach == integer_zero_node)
+    t = objc_pop_break_label ();
+  /* APPLE LOCAL end radar 4547045 */
   gimplify_stmt (&body);
   gimplify_stmt (&incr);
 
   body = finish_bc_block (bc_continue, cont_block, body);
+  /* APPLE LOCAL begin radar 4547045 */
+  /* Push back inner loop's own 'break' label so rest
+     of code works seemlessly. */
+  /* APPLE LOCAL radar 4667060 */
+  if (inner_foreach == integer_zero_node)
+    objc_push_break_label (t);
+  /* APPLE LOCAL end radar 4547045 */
 
   append_to_statement_list (top, &stmt_list);
   append_to_statement_list (body, &stmt_list);
@@ -269,7 +348,7 @@ gimplify_for_stmt (tree *stmt_p, tree *pre_p)
     gimplify_and_add (FOR_INIT_STMT (stmt), pre_p);
 
   *stmt_p = gimplify_cp_loop (FOR_COND (stmt), FOR_BODY (stmt),
-			      FOR_EXPR (stmt), 1);
+			      FOR_EXPR (stmt), 1, NULL_TREE);
 }
 
 /* Gimplify a WHILE_STMT node.  */
@@ -279,7 +358,7 @@ gimplify_while_stmt (tree *stmt_p)
 {
   tree stmt = *stmt_p;
   *stmt_p = gimplify_cp_loop (WHILE_COND (stmt), WHILE_BODY (stmt),
-			      NULL_TREE, 1);
+			      NULL_TREE, 1, NULL_TREE);
 }
 
 /* Gimplify a DO_STMT node.  */
@@ -289,7 +368,7 @@ gimplify_do_stmt (tree *stmt_p)
 {
   tree stmt = *stmt_p;
   *stmt_p = gimplify_cp_loop (DO_COND (stmt), DO_BODY (stmt),
-			      NULL_TREE, 0);
+			      NULL_TREE, 0, DO_FOREACH (stmt));
 }
 
 /* Genericize a SWITCH_STMT by turning it into a SWITCH_EXPR.  */

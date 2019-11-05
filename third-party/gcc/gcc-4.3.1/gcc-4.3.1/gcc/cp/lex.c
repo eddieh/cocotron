@@ -315,6 +315,12 @@ static const struct resword reswords[] =
   { "end",		RID_AT_END,		D_OBJC },
   { "implementation",	RID_AT_IMPLEMENTATION,	D_OBJC },
   { "interface",	RID_AT_INTERFACE,	D_OBJC },
+  /* APPLE LOCAL C* language */
+  { "optional",         RID_AT_OPTIONAL,        D_OBJC },
+  /* APPLE LOCAL C* language */
+  { "required",         RID_AT_REQUIRED,        D_OBJC },
+  /* APPLE LOCAL C* property (Radar 4436866) */
+  { "property",		RID_AT_PROPERTY,	D_OBJC },
   { "protocol",		RID_AT_PROTOCOL,	D_OBJC },
   { "selector",		RID_AT_SELECTOR,	D_OBJC },
   { "finally",		RID_AT_FINALLY,		D_OBJC },
@@ -326,6 +332,24 @@ static const struct resword reswords[] =
   { "inout",		RID_INOUT,		D_OBJC },
   { "oneway",		RID_ONEWAY,		D_OBJC },
   { "out",		RID_OUT,		D_OBJC },
+  /* APPLE LOCAL begin C* property (Radar 4436866) */
+  /* These are recognized inside a property attribute list */
+  { "readonly",         RID_READONLY,           D_OBJC },
+  { "getter",           RID_GETTER,             D_OBJC },
+  { "setter",           RID_SETTER,             D_OBJC },
+  /* APPLE LOCAL end C* property (Radar 4436866) */
+  /* APPLE LOCAL begin objc new property */
+  { "synthesize",       RID_AT_SYNTHESIZE,   D_OBJC },
+  { "dynamic",          RID_AT_DYNAMIC,      D_OBJC },
+  { "readwrite",        RID_READWRITE,    D_OBJC },
+  { "assign",           RID_ASSIGN,       D_OBJC },
+  { "retain",           RID_RETAIN,       D_OBJC },
+  { "copy",             RID_COPY,         D_OBJC },
+  /* APPLE LOCAL end objc new property */
+  /* APPLE LOCAL radar 4947014 - objc atomic property */
+  { "nonatomic",       RID_NONATOMIC,          D_OBJC },
+  /* APPLE LOCAL radar 4564694 */
+  { "package",          RID_AT_PACKAGE,         D_OBJC },
 };
 
 void

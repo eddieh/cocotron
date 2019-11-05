@@ -291,9 +291,9 @@ DEFTREECODE (FOR_STMT, "for_stmt", tcc_statement, 4)
    and WHILE_BODY, respectively.  */
 DEFTREECODE (WHILE_STMT, "while_stmt", tcc_statement, 2)
 
-/* Used to represent a 'do' statement. The operands are DO_BODY and
-   DO_COND, respectively.  */
-DEFTREECODE (DO_STMT, "do_stmt", tcc_statement, 2)
+/* Used to represent a 'do' statement. The operands are DO_BODY, 
+   DO_COND and DO_FOREACH respectively.  */
+DEFTREECODE (DO_STMT, "do_stmt", tcc_statement, 3)
 
 /* Used to represent a 'break' statement.  */
 DEFTREECODE (BREAK_STMT, "break_stmt", tcc_statement, 0)

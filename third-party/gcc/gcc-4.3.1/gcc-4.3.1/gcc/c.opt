@@ -520,7 +520,7 @@ C++ ObjC++
 Reduce the size of object files
 
 fconstant-string-class=
-ObjC ObjC++ Joined
+C C++ ObjC ObjC++ Joined
 -fconst-string-class=<name>	Use class <name> for constant strings
 
 fdefault-inline
@@ -572,10 +572,6 @@ Do not assume that standard C libraries and \"main\" exist
 fgnu-keywords
 C++ ObjC++
 Recognize GNU-defined keywords
-
-fgnu-runtime
-ObjC ObjC++
-Generate code for GNU runtime environment
 
 fgnu89-inline
 C ObjC Var(flag_gnu89_inline) Init(-1)
@@ -631,10 +627,6 @@ C++ ObjC++ Joined
 fnew-abi
 C++ ObjC++
 
-fnext-runtime
-ObjC ObjC++
-Generate code for NeXT (Apple Mac OS X) runtime environment
-
 fnil-receivers
 ObjC ObjC++
 Assume that receivers of Objective-C messages may be nil
@@ -644,6 +636,22 @@ C++ ObjC++
 
 fnonnull-objects
 C++ ObjC++
+
+fobjc-link-constant-string-class
+ObjC ObjC++ Var(flag_objc_link_constant_string_class)
+Generate static function which initializes module
+
+fobjc-module-static-initializer
+ObjC ObjC++ Var(flag_objc_module_static_initializer) Init(1)
+Generate static function which initializes module
+
+fobjc-msgsend
+ObjC ObjC++ Var(flag_objc_msgsend)
+Use objc_msgSend* functions instead of the default objc_msg_lookup* ones
+  
+fobjc-period-symbols
+ObjC ObjC++ Var(flag_objc_period_symbols)
+Generate Objective-C symbols prefixed with a period (.) instead of the default of two underscores (__)
 
 ; Generate special '- .cxx_construct' and '- .cxx_destruct' methods
 ; to initialize any non-POD ivars in Objective-C++ classes.

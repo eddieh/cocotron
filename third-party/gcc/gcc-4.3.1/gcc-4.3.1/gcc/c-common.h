@@ -107,12 +107,27 @@ enum rid
   /* Objective-C */
   RID_AT_ENCODE,   RID_AT_END,
   RID_AT_CLASS,    RID_AT_ALIAS,     RID_AT_DEFS,
-  RID_AT_PRIVATE,  RID_AT_PROTECTED, RID_AT_PUBLIC,
+  /* APPLE LOCAL radar 4564694 */
+  RID_AT_PACKAGE,  RID_AT_PRIVATE,  RID_AT_PROTECTED, RID_AT_PUBLIC,
   RID_AT_PROTOCOL, RID_AT_SELECTOR,
   RID_AT_THROW,	   RID_AT_TRY,       RID_AT_CATCH,
   RID_AT_FINALLY,  RID_AT_SYNCHRONIZED,
   RID_AT_INTERFACE,
+  /* APPLE LOCAL C* language */
+  RID_AT_OPTIONAL, RID_AT_REQUIRED,
+  /* APPLE LOCAL C* property (Radar 4436866) */
+  RID_AT_PROPERTY,
+  /* APPLE LOCAL begin objc new property */
+  RID_AT_SYNTHESIZE,
+  RID_AT_DYNAMIC,
+  /* APPLE LOCAL end objc new property */
   RID_AT_IMPLEMENTATION,
+  /* APPLE LOCAL C* property (Radar 4436866, 4591909, 4621020) */
+  RID_READONLY, RID_GETTER, RID_SETTER, 
+  /* APPLE LOCAL objc new property */
+  RID_READWRITE, RID_ASSIGN, RID_RETAIN, RID_COPY,
+  /* APPLE LOCAL radar 4947014 - objc atomic property */
+  RID_NONATOMIC,
 
   RID_MAX,
 
@@ -126,6 +141,20 @@ enum rid
   RID_FIRST_PQ = RID_IN,
   RID_LAST_PQ = RID_ONEWAY
 };
+
+/* APPLE LOCAL begin objc new property */
+#define OBJC_IS_NEW_PATTR_KEYWORD(rid) \
+  (((unsigned int) (rid) == RID_SETTER    || \
+    (unsigned int) (rid) == RID_GETTER    || \
+    (unsigned int) (rid) == RID_READONLY  || \
+    (unsigned int) (rid) == RID_READWRITE || \
+    (unsigned int) (rid) == RID_ASSIGN    || \
+    (unsigned int) (rid) == RID_RETAIN    || \
+    /* APPLE LOCAL begin radar 4947014 - objc atomic property */  \
+    (unsigned int) (rid) == RID_COPY	  || \
+    (unsigned int) (rid) == RID_NONATOMIC))
+    /* APPLE LOCAL end radar 4947014 - objc atomic property */  \
+/* APPLE LOCAL end objc new property */
 
 #define OBJC_IS_AT_KEYWORD(rid) \
   ((unsigned int) (rid) >= (unsigned int) RID_FIRST_AT && \
@@ -936,7 +965,7 @@ extern int objc_is_public (tree, tree);
 extern tree objc_is_id (tree);
 extern void objc_declare_alias (tree, tree);
 extern void objc_declare_class (tree);
-extern void objc_declare_protocols (tree);
+extern void objc_declare_protocols (tree, tree);
 extern tree objc_build_message_expr (tree);
 extern tree objc_finish_message_expr (tree, tree, tree);
 extern tree objc_build_selector_expr (tree);
@@ -946,9 +975,9 @@ extern tree objc_build_string_object (tree);
 extern tree objc_get_protocol_qualified_type (tree, tree);
 extern tree objc_get_class_reference (tree);
 extern tree objc_get_class_ivars (tree);
-extern void objc_start_class_interface (tree, tree, tree);
+extern void objc_start_class_interface (tree, tree, tree, tree);
 extern void objc_start_category_interface (tree, tree, tree);
-extern void objc_start_protocol (tree, tree);
+extern void objc_start_protocol (tree, tree, tree);
 extern void objc_continue_interface (void);
 extern void objc_finish_interface (void);
 extern void objc_start_class_implementation (tree, tree);
@@ -958,11 +987,11 @@ extern void objc_finish_implementation (void);
 extern void objc_set_visibility (int);
 extern void objc_set_method_type (enum tree_code);
 extern tree objc_build_method_signature (tree, tree, tree, bool);
-extern void objc_add_method_declaration (tree);
-extern void objc_start_method_definition (tree);
+extern void objc_add_method_declaration (tree, tree);
+extern void objc_start_method_definition (tree, tree);
 extern void objc_finish_method_definition (tree);
 extern void objc_add_instance_variable (tree);
-extern tree objc_build_keyword_decl (tree, tree, tree);
+extern tree objc_build_keyword_decl (tree, tree, tree, tree);
 extern tree objc_build_throw_stmt (tree);
 extern void objc_begin_try_stmt (location_t, tree);
 extern tree objc_finish_try_stmt (void);
@@ -973,6 +1002,21 @@ extern tree objc_build_synchronized (location_t, tree, tree);
 extern int objc_static_init_needed_p (void);
 extern tree objc_generate_static_init_call (tree);
 extern tree objc_generate_write_barrier (tree, enum tree_code, tree);
+
+extern void objc_finish_foreach_loop (location_t, tree, tree, tree, tree);
+extern tree objc_build_property_reference_expr (tree, tree);
+extern void objc_set_property_attr (int, tree);
+extern void objc_add_property_variable (tree);
+extern void objc_declare_property_impl (int, tree);
+extern void objc_set_method_opt (int);
+
+extern tree objc_build_foreach_components(tree, tree*, tree*, tree*, tree*, tree*, tree*);
+extern tree objc_common_type (tree, tree);
+extern bool objc_have_common_type (tree, tree, int, tree);
+extern bool objc_type_valid_for_messaging(tree);
+extern bool objc_property_reference_expr(tree);
+extern tree objc_build_component_ref(tree, tree);
+extern tree objc_build_setter_call(tree, tree);
 
 /* The following are provided by the C and C++ front-ends, and called by
    ObjC/ObjC++.  */

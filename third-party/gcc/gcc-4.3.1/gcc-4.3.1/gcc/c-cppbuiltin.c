@@ -662,10 +662,6 @@ c_cpp_builtins (cpp_reader *pfile)
     cpp_define (pfile, "__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16");
 #endif
 
-  /* Make the choice of ObjC runtime visible to source code.  */
-  if (c_dialect_objc () && flag_next_runtime)
-    cpp_define (pfile, "__NEXT_RUNTIME__");
-
   /* Show the availability of some target pragmas.  */
   if (flag_mudflap || targetm.handle_pragma_redefine_extname)
     cpp_define (pfile, "__PRAGMA_REDEFINE_EXTNAME");

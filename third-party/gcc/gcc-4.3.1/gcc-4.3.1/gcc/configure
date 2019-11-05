@@ -7533,7 +7533,7 @@ else
 fi
 
 case "${host}" in
-*-*-darwin*)
+*-*-darwin9*)
   # By default, the Darwin ranlib will not treat common symbols as
   # definitions when  building the archive table of contents.  Other
   # ranlibs do that; pass an option to the Darwin ranlib that makes

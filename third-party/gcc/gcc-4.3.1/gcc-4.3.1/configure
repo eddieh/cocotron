@@ -1855,9 +1855,7 @@ host_libs="intl mmalloc libiberty opcodes bfd readline tcl tk itcl libgui zlib l
 host_tools="texinfo byacc flex bison binutils gas ld fixincludes gcc sid sim gdb make patch prms send-pr gprof etc expect dejagnu ash bash bzip2 m4 autoconf automake libtool diff rcs fileutils shellutils time textutils wdiff find uudecode hello tar gzip indent recode release sed utils guile perl gawk findutils gettext zip fastjar gnattools"
 
 # libgcj represents the runtime libraries only used by gcj.
-libgcj="target-libffi \
-	target-zlib \
-	target-qthreads \
+libgcj="target-qthreads \
 	target-libjava"
 
 # these libraries are built for the target environment, and are built after
@@ -1873,8 +1871,8 @@ target_libraries="target-libgcc \
 		target-libssp \
 		target-libgfortran \
 		target-boehm-gc \
+		target-libffi \
 		${libgcj} \
-		target-libobjc \
 		target-libada"
 
 # these tools are built using the target libraries, and are intended to

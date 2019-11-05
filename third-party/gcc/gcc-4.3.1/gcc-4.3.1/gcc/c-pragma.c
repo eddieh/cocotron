@@ -917,6 +917,40 @@ c_invoke_pragma_handler (unsigned int id)
   handler (parse_in);
 }
 
+/* #pragma unused ([var {, var}*]) */
+
+void
+darwin_pragma_unused (cpp_reader *pfile ATTRIBUTE_UNUSED)
+{
+  tree decl, x;
+  int tok;
+
+  if (pragma_lex (&x) != CPP_OPEN_PAREN)
+    GCC_BAD ("missing '(' after '#pragma unused', ignoring");
+
+  while (1)
+    {
+      tok = pragma_lex (&decl);
+      if (tok == CPP_NAME && decl)
+	{
+	  tree local = lookup_name (decl);
+	  if (local && (TREE_CODE (local) == PARM_DECL
+			|| TREE_CODE (local) == VAR_DECL))
+	    TREE_USED (local) = 1;
+	  tok = pragma_lex (&x);
+	  if (tok != CPP_COMMA)
+	    break;
+	}
+    }
+
+  if (tok != CPP_CLOSE_PAREN)
+    GCC_BAD ("missing ')' after '#pragma unused', ignoring");
+
+  if (pragma_lex (&x) != CPP_EOF)
+    GCC_BAD ("junk at end of '#pragma unused'");
+}
+
+
 /* Set up front-end pragmas.  */
 void
 init_pragma (void)
@@ -967,6 +1001,7 @@ init_pragma (void)
 #ifdef HANDLE_PRAGMA_VISIBILITY
   c_register_pragma ("GCC", "visibility", handle_pragma_visibility);
 #endif
+   c_register_pragma (0, "unused", darwin_pragma_unused);
 
   c_register_pragma ("GCC", "diagnostic", handle_pragma_diagnostic);
 

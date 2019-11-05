@@ -556,6 +556,7 @@ static tree handle_cleanup_attribute (tree *, tree, tree, int, bool *);
 static tree handle_warn_unused_result_attribute (tree *, tree, tree, int,
 						 bool *);
 static tree handle_sentinel_attribute (tree *, tree, tree, int, bool *);
+static tree handle_objc_gc_attribute(tree *, tree, tree, int, bool *);
 static tree handle_type_generic_attribute (tree *, tree, tree, int, bool *);
 static tree handle_alloc_size_attribute (tree *, tree, tree, int, bool *);
 
@@ -654,6 +655,7 @@ const struct attribute_spec c_common_attribute_table[] =
 			      handle_warn_unused_result_attribute },
   { "sentinel",               0, 1, false, true, true,
 			      handle_sentinel_attribute },
+  { "objc_gc", 1, 1, false, true, false, handle_objc_gc_attribute },
   /* For internal use (marking of builtins) only.  The name contains space
      to prevent its usage in source code.  */
   { "type generic",           0, 0, false, true, true,
@@ -6411,6 +6413,47 @@ handle_sentinel_attribute (tree *node, tree name, tree args,
     }
 
   return NULL_TREE;
+}
+
+static tree
+handle_objc_gc_attribute (tree *node,
+								 tree name,
+								 tree args,
+								 int flags ATTRIBUTE_UNUSED,
+								 bool *no_add_attrs)
+{
+	tree orig = *node, type;
+	
+	/* Propagate GC-ness to the innermost pointee.  */
+	while (POINTER_TYPE_P (orig)
+		   || TREE_CODE (orig) == FUNCTION_TYPE
+		   || TREE_CODE (orig) == METHOD_TYPE
+		   || TREE_CODE (orig) == ARRAY_TYPE)
+		orig = TREE_TYPE (orig);
+	
+	type = build_type_attribute_variant (orig,
+										 tree_cons (name, args,
+													TYPE_ATTRIBUTES (orig)));
+	
+	/* For some reason, build_type_attribute_variant() creates a distinct
+     type instead of a true variant!  We make up for this here.  */
+	/* APPLE LOCAL begin radar 4600999 */
+	/* The main variant must be preserved no matter what. What ever
+     main variant comes out of the call to build_type_attribute_variant
+     is bogus here. */
+	if (TYPE_MAIN_VARIANT (orig) != TYPE_MAIN_VARIANT (type))
+    {
+		TYPE_MAIN_VARIANT (type) = TYPE_MAIN_VARIANT (orig);
+		/* APPLE LOCAL end radar 4600999 */
+		TYPE_NEXT_VARIANT (type) = TYPE_NEXT_VARIANT (orig);
+		TYPE_NEXT_VARIANT (orig) = type;
+    }
+	
+	*node = reconstruct_complex_type (*node, type);
+	/* No need to hang on to the attribute any longer.  */
+	*no_add_attrs = true;
+	
+	return NULL_TREE;
 }
 
 /* Handle a "type_generic" attribute.  */
