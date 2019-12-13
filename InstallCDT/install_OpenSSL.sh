@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 SSLVERSION=0.9.8h-1
@@ -31,4 +31,3 @@ cp lib/libssl.a $PREFIX/lib
 
 mkdir -p $PREFIX/include
 cp -r include/openssl $PREFIX/include
-

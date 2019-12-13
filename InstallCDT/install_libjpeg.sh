@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 if [ ""$1"" = "" ];then
@@ -23,7 +23,7 @@ else
   gccVersion=$3
 fi
 
-BASEDIR=/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
+BASEDIR=$HOME/Library/Developer/Cocotron/1.0/$targetPlatform/$targetArchitecture
 PREFIX=`pwd`/../system/i386-mingw32msvc/libjpeg
 
 BUILD=/tmp/build_libjepg
@@ -37,7 +37,7 @@ cd $BUILD
 tar -xvzf $downloadFolder/jpegsrc.v8c.tar.gz
 cd jpeg-8c
 
-pwd 
+pwd
 
 GCC=$(echo $BASEDIR/gcc-$gccVersion/bin/*gcc)
 RANLIB=$(echo $BASEDIR/gcc-$gccVersion/bin/*ranlib)
@@ -47,4 +47,3 @@ TARGET=$($GCC -dumpmachine)
 ./configure --prefix="$PREFIX" -host $TARGET CC=$GCC RANLIB=$RANLIB
 
 make && make install
-

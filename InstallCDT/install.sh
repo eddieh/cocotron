@@ -1,26 +1,34 @@
 #!/bin/sh
-#Copyright (c) 2006 Christopher J. W. Lloyd
+
+# Copyright (c) 2006 Christopher J. W. Lloyd
+# Copyright (c) 2019 Eddie Hillenbrand
 #
-#Permission is hereby granted, free of charge, to any person obtaining a copy of this
-#software and associated documentation files (the "Software"), to deal in the Software
-#without restriction, including without limitation the rights to use, copy, modify,
-#merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-#permit persons to whom the Software is furnished to do so, subject to the following
-#conditions:
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
 #
-#The above copyright notice and this permission notice shall be included in all copies
-#or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
 #
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-#INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-#PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-#LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-#TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-#OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 #
 # Inspired by the build-cross.sh script by Sam Lantinga, et al
-# Usage: install.sh <platform> <architecture> <compiler> <compiler-version> <osVersion>"
+# Usage:
+#   install.sh <platform> <arch> <compiler> <compiler-ver> <os-ver>
 # Windows i386, Linux i386, Solaris sparc
+
+TAR=tar
 
 if [ ""$1"" = "" ];then
 	targetPlatform="Windows"
@@ -88,16 +96,22 @@ else
 	wordSize="32"
 fi
 
+set -eu
+
 /bin/echo "Welcome to The Cocotron's InstallCDT script"
 
-if [ -w /Library/Application\ Support/Developer/Shared/Xcode/Specifications ];then
-	/bin/echo "Permissions properly set up, continuing install."
-else
-	/bin/echo "For this script to complete successfully, the directory /Library/Application Support/Developer/Shared/Xcode/Specifications must be writeable by you, and we've detected that it isn't.  "
-	exit 1
-fi
+oldSpecsPath="/Library/Application\ Support/Developer/Shared/Xcode/Specifications"
+specsPath="$HOME/Library/Application Support/Developer/Shared/Xcode/Specifications"
 
-set -eu
+# We don't need to check if the path is writable in ~/
+# if [ -w specsPath ];then
+# 	/bin/echo "Permissions properly set up, continuing install."
+# else
+# 	/bin/echo "[fail] $specsPath NOT writable."
+# 	exit 1
+# fi
+
+mkdir -p "$specsPath"
 
 cd "`dirname \"$0\"`"
 installResources=`pwd`/Resources
@@ -109,15 +123,34 @@ fi
 
 enableLanguages="c,objc,c++,obj-c++"
 
-installFolder=/Developer
+oldInstallFolder="/Developer"
+installFolder="$HOME/Library/Developer"
+
 productName=Cocotron
 productVersion=1.0
 
 binutilsVersion=2.21-20111025
 mingwRuntimeVersion=3.20
+mingwAPIDirectory=3.17
 mingwAPIVersion=3.17-2
 gmpVersion=4.2.3
 mpfrVersion=2.3.2
+
+
+URL1="http://cocotron-tools-gpl3.googlecode.com/files/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz"
+URL1="http://cocotron-tools-gpl3.googlecode.com/files/w32api-$mingwAPIVersion-mingw32-dev.tar.gz"
+URL1A="http://cocotron-tools-gpl3.googlecode.com/files/w32api-3.17-2-mingw32-dev.tar.gz"
+URL2="http://cocotron-tools-gpl3.googlecode.com/files/$compiler-$compilerVersion$compilerVersionDate.tar.bz2"
+URL3="http://ftp.sunet.se/pub/gnu/gmp/gmp-$gmpVersion.tar.bz2"
+URL4="http://cocotron-binutils-2-21.googlecode.com/files/binutils-$binutilsVersion.tar.gz"
+URL5="http://cocotron-tools-gpl3.googlecode.com/files/mpfr-$mpfrVersion.tar.bz2"
+
+MINGWRT_URL="https://sourceforge.net/projects/mingw/files/MinGW/Base/mingwrt/mingwrt-$mingwRuntimeVersion/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz"
+W32API_URL="https://sourceforge.net/projects/mingw/files/MinGW/Base/w32api/w32api-$mingwAPIDirectory/w32api-$mingwAPIVersion-mingw32-dev.tar.lzma"
+GCC_URL="https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-tools-gpl3/gcc-4.3.1-02242010.tar.bz2"
+GMP_URL="http://ftp.gnu.org/gnu/gmp/gmp-4.2.3.tar.bz2"
+BINUTILS_URL="https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-binutils-2-21/binutils-2.21-20111025.tar.gz"
+MPFR_URL="https://www.mpfr.org/mpfr-2.3.2/mpfr-2.3.2.tar.bz2"
 
 binutilsConfigureFlags=""
 
@@ -187,26 +220,35 @@ toolResources="$installResources/tools"
 
 
 
-productFolder=$installFolder/$productName/$productVersion
+productFolder="$installFolder/$productName/$productVersion"
 
-downloadFolder=$productFolder/Downloads
-sourceFolder=$productFolder/Source
-interfaceFolder=$productFolder/PlatformInterfaces/$compilerTarget
-buildFolder=$productFolder/build/$targetPlatform/$targetArchitecture
-resultFolder=$productFolder/$targetPlatform/$targetArchitecture/$compiler-$compilerVersion
-toolFolder=$productFolder/bin
+downloadFolder="$productFolder/Downloads"
+sourceFolder="$productFolder/Source"
+interfaceFolder="$productFolder/PlatformInterfaces/$compilerTarget"
+buildFolder="$productFolder/build/$targetPlatform/$targetArchitecture"
+resultFolder="$productFolder/$targetPlatform/$targetArchitecture/$compiler-$compilerVersion"
+toolFolder="$productFolder/bin"
 
 PATH="$resultFolder/bin:$PATH"
 
 downloadCompilerIfNeeded(){
-	$scriptResources/downloadFilesIfNeeded.sh $downloadFolder "http://cocotron-tools-gpl3.googlecode.com/files/$compiler-$compilerVersion$compilerVersionDate.tar.bz2 http://ftp.sunet.se/pub/gnu/gmp/gmp-$gmpVersion.tar.bz2 http://cocotron-binutils-2-21.googlecode.com/files/binutils-$binutilsVersion.tar.gz http://cocotron-tools-gpl3.googlecode.com/files/mpfr-$mpfrVersion.tar.bz2"
-	$scriptResources/unarchiveFiles.sh $downloadFolder $sourceFolder "$compiler-$compilerVersion$compilerVersionDate binutils-$binutilsVersion gmp-$gmpVersion mpfr-$mpfrVersion"
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $GCC_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $GMP_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $BINUTILS_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $MPFR_URL
+
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "$compiler-$compilerVersion$compilerVersionDate"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "binutils-$binutilsVersion"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "gmp-$gmpVersion"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $sourceFolder "mpfr-$mpfrVersion"
 }
 
 createWindowsInterfaceIfNeeded(){
-	"$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder "http://cocotron-tools-gpl3.googlecode.com/files/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz http://cocotron-tools-gpl3.googlecode.com/files/w32api-$mingwAPIVersion-mingw32-dev.tar.gz"
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $MINGWRT_URL
+    "$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder $W32API_URL
 
-	"$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "mingwrt-$mingwRuntimeVersion-mingw32-dev w32api-$mingwAPIVersion-mingw32-dev"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "mingwrt-$mingwRuntimeVersion-mingw32-dev"
+    "$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "w32api-$mingwAPIVersion-mingw32-dev"
 }
 
 createLinuxInterfaceIfNeeded(){
@@ -235,7 +277,7 @@ copyPlatformInterface(){
 		exit 1
 	else
 		mkdir -p $resultFolder/$compilerTarget
-		(cd $interfaceFolder;gnutar -cf - *) | (cd $resultFolder/$compilerTarget;gnutar -xf -)
+		(cd $interfaceFolder;$TAR cf - *) | (cd $resultFolder/$compilerTarget;$TAR xf -)
 	fi
 }
 
@@ -244,7 +286,8 @@ configureAndInstall_binutils() {
 	rm -rf $buildFolder/binutils-$binutilsVersion
 	mkdir -p $buildFolder/binutils-$binutilsVersion
 	pushd $buildFolder/binutils-$binutilsVersion
-	CFLAGS="-m${wordSize} -Wformat=0 -Wno-error=deprecated-declarations -Wno-error=unused-value" $sourceFolder/binutils-$binutilsVersion/configure --prefix="$resultFolder" --target=$compilerTarget $binutilsConfigureFlags
+        # -Wno-error=deprecated-declarations -Wno-error=unused-value
+	CFLAGS="-m${wordSize} -Wformat=0 -Wno-error" $sourceFolder/binutils-$binutilsVersion/configure --prefix="$resultFolder" --target=$compilerTarget $binutilsConfigureFlags
 	make
 	make install
 	popd
@@ -259,7 +302,7 @@ configureAndInstall_gmpAndMpfr() {
 	make
 	make install
 	popd
-	
+
     /bin/echo "Configuring and building mpfr "$mpfrVersion
 	rm -rf $buildFolder/mpfr-$mpfrVersion
 	mkdir -p $buildFolder/mpfr-$mpfrVersion
@@ -273,7 +316,7 @@ configureAndInstall_gmpAndMpfr() {
 configureAndInstall_compiler() {
 	/bin/echo "Configuring, building and installing $compiler "$compilerVersion
 
-if [ "$compiler" = "gcc" ]; then	
+if [ "$compiler" = "gcc" ]; then
 	rm -rf $buildFolder/$compiler-$compilerVersion
 	mkdir -p $buildFolder/$compiler-$compilerVersion
 	pushd $buildFolder/$compiler-$compilerVersion
@@ -284,17 +327,17 @@ if [ "$compiler" = "gcc" ]; then
 		--with-gmp=$buildFolder/gmp-$gmpVersion --enable-decimal-float --with-mpfr=$resultFolder --enable-checking=release \
 		--enable-objc-gc \
 		$compilerConfigureFlags
-	make 
+	make
 	make install
 	popd
 
-elif [ "$compiler" = "llvm-clang" ]; then	
+elif [ "$compiler" = "llvm-clang" ]; then
 	if [ ! -e "$productFolder/$compiler-$compilerVersion/bin/clang" ]; then
 		rm -rf $productFolder/build/$compiler-$compilerVersion
 		mkdir -p $productFolder/build/$compiler-$compilerVersion
 		pushd $productFolder/build/$compiler-$compilerVersion
 		$sourceFolder/$compiler-$compilerVersion/configure --enable-optimized --prefix="$productFolder/$compiler-$compilerVersion"
-		make 
+		make
 		make install
 		popd
 	else
@@ -328,7 +371,7 @@ stripBinaries() {
 
 "create"$targetPlatform"InterfaceIfNeeded"
 downloadCompilerIfNeeded
-       
+
 /bin/echo -n "Copying the platform interface.  This could take a while.."
 if [ $targetPlatform != "Darwin" ]; then
 	copyPlatformInterface
@@ -354,7 +397,7 @@ cc "$toolResources/retargetBundle.m" -framework Foundation -o $toolFolder/retarg
 
 if [ "$compiler" = "gcc" ]; then
 	(cd $resultFolder/..;ln -fs $compiler-$compilerVersion g++-$compilerVersion)
-elif [ "$compiler" = "llvm-clang" ]; then	
+elif [ "$compiler" = "llvm-clang" ]; then
 	(cd $resultFolder/..;ln -fs $compiler-$compilerVersion llvm-clang++-$compilerVersion)
 else
 	/bin/echo "Unknown compiler $compiler"
@@ -362,7 +405,7 @@ else
 fi
 
 if [ "$compiler" = "llvm-clang" ]; then
-# you need to install also gcc because -ccc-gcc-name is required for cross compiling with clang (this is required for choosing the right assembler 'as' tool. 
+# you need to install also gcc because -ccc-gcc-name is required for cross compiling with clang (this is required for choosing the right assembler 'as' tool.
 # there is no flag for referencing only this tool :-(
 /bin/echo -n "Creating clang script for architecture $targetArchitecture ..."
 /bin/echo '#!/bin/sh' > $installFolder/$productName/$productVersion/$targetPlatform/$targetArchitecture/llvm-clang-$compilerVersion/bin/$compilerTarget-llvm-clang
@@ -371,6 +414,6 @@ if [ "$compiler" = "llvm-clang" ]; then
 chmod +x $installFolder/$productName/$productVersion/$targetPlatform/$targetArchitecture/llvm-clang-$compilerVersion/bin/$compilerTarget-llvm-clang
 /bin/echo "done."
 fi
-echo 
+echo
 
 /bin/echo "Script completed"

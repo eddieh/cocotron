@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# This script removes superfluous /* cocotron.org begin */ and
+# /* cocotron.org end */ comments from files.
+#
+# NOTE: Assume macOS style 'sed'
+#
+# Usage: remove-cocotron-comments <file>
+
+sed -i "" '/\* cocotron\.org begin \*/d' "$1"
+sed -i "" '/\* cocotron\.org end \*/d' "$1"

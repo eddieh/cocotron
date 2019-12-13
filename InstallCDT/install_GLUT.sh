@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads
 
 PREFIX=`pwd`/../system/i386-mingw32msvc
@@ -22,5 +22,3 @@ cp glut32.lib $PREFIX/lib
 
 mkdir -p $PREFIX/include/GLUT
 cp glut.h $PREFIX/include/GLUT/GLUT.h
-
-

@@ -5,7 +5,7 @@
 		Name       = "%REPLACE%ProductName%REPLACE% %REPLACE%ProductVersion%REPLACE% %REPLACE%Platform%REPLACE% %REPLACE%architecture%REPLACE% llvm-clang %REPLACE%compilerVersion%REPLACE%";
 		Version    = "org.cocotron.%REPLACE%ProductVersion%REPLACE%.%REPLACE%platform%REPLACE%.%REPLACE%architecture%REPLACE%.clang.%REPLACE%compilerVersion%REPLACE%";
 		Vendor     = "cocotron.org";
-		ExecPath   = "/Developer/%REPLACE%ProductName%REPLACE%/%REPLACE%ProductVersion%REPLACE%/%REPLACE%Platform%REPLACE%/%REPLACE%architecture%REPLACE%/llvm-clang-%REPLACE%compilerVersion%REPLACE%/bin/%REPLACE%TARGET%REPLACE%-llvm-clang";
+		ExecPath   = "~/Library/Developer/%REPLACE%ProductName%REPLACE%/%REPLACE%ProductVersion%REPLACE%/%REPLACE%Platform%REPLACE%/%REPLACE%architecture%REPLACE%/llvm-clang-%REPLACE%compilerVersion%REPLACE%/bin/%REPLACE%TARGET%REPLACE%-llvm-clang";
 		Architectures = (i386);
 
 		SupportsZeroLink              = No;
@@ -21,7 +21,7 @@
 	{
 		Name=%REPLACE%PRODUCTNAME%REPLACE%_FRAMEWORK_SEARCH_PATH;
 		Type = string;
-		DefaultValue = "/Developer/%REPLACE%ProductName%REPLACE%/%REPLACE%ProductVersion%REPLACE%/%REPLACE%Platform%REPLACE%/%REPLACE%architecture%REPLACE%/Frameworks";
+		DefaultValue = "~/Library/Developer/%REPLACE%ProductName%REPLACE%/%REPLACE%ProductVersion%REPLACE%/%REPLACE%Platform%REPLACE%/%REPLACE%architecture%REPLACE%/Frameworks";
 		CommandLineArgs = ( "-F$(value)" );
 	},
 	{

@@ -2,7 +2,7 @@
 installResources=`pwd`/Resources
 scriptResources=$installResources/scripts
 
-productFolder=/Developer/Cocotron/1.0
+productFolder=$HOME/Library/Developer/Cocotron/1.0
 downloadFolder=$productFolder/Downloads/pthread
 
 
@@ -26,4 +26,3 @@ mkdir -p $PREFIX/include
 cp $downloadFolder/pthread.h  $PREFIX/include
 cp $downloadFolder/sched.h  $PREFIX/include
 cp $downloadFolder/semaphore.h  $PREFIX/include
-
