@@ -29,6 +29,7 @@ export PREFIX SRCROOT BUILDROOT DSTROOT TARGET_PLATFORM TARGET_ARCH \
  TARGET_ABI COMPILER_TARGET PRODUCT_PATH INSTALL_PATH INTERFACE_PATH \
  THIRD_PARTY_PATH CC
 
+export PRODUCT_NAME PRODUCT_VERSION COMPILER COMPILER_VERSION
 
 MODULES = third-party
 
@@ -51,3 +52,6 @@ analyze:
 clean:
 	@for dir in $(MODULES); do ${MAKE} $@ -C $$dir; exit_status=$$?; \
 	if [ $$exit_status -ne 0 ]; then exit $$exit_status; fi; done
+
+install_specs:
+	${MAKE} all -C InstallCDT/Resources
