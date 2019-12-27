@@ -55,3 +55,8 @@ clean:
 
 install_specs:
 	${MAKE} all -C InstallCDT/Resources
+
+install_tools:
+	mkdir -p "${HOME}/bin"
+	cp Tools/Scripts/crun "${HOME}/bin"
+	@echo "\nEnsure \$$HOME/bin is in your \$$PATH"
